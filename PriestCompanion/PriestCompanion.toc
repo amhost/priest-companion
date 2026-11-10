@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: Priest Companion
+## Notes: Movable priest, quest, preparation, reference, goals and kill-tracking panels.
+## Author: Priest Companion contributors
+## Version: 0.1.0-alpha.1
+## SavedVariablesPerCharacter: PriestCompanionDB
+## IconTexture: Interface\Icons\ClassIcon_Priest
+
+Core.lua
+UI.lua
+Modules\Priest.lua
+Modules\Quests.lua
+Modules\Preparation.lua
+Modules\References.lua
+Modules\Goals.lua
+Modules\Kills.lua
+Modules\Appearance.lua
+Modules\Settings.lua
+Bindings.xml

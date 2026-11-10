@@ -1,0 +1,11 @@
+<Bindings>
+    <Binding name="PRIESTCOMPANION_TOGGLE" header="PRIESTCOMPANION" category="ADDONS">
+        PriestCompanion_Toggle();
+    </Binding>
+    <Binding name="PRIESTCOMPANION_LOCK" category="ADDONS">
+        PriestCompanion_Lock();
+    </Binding>
+    <Binding name="PRIESTCOMPANION_LAYOUT" category="ADDONS">
+        PriestCompanion_Layout();
+    </Binding>
+</Bindings>

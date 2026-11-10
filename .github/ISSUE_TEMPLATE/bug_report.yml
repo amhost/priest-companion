@@ -1,0 +1,38 @@
+name: Alpha bug report
+description: Report a reproducible Priest Companion issue.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Include the exact client build. Do not upload your WTF folder, account details, or personal lists."
+  - type: input
+    id: version
+    attributes:
+      label: Addon version
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Client build and diagnostics
+      description: "Run /pc diagnostics and paste the report after reviewing it."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: "Name the panel, actions, and whether combat was active."
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: other_addons
+    attributes:
+      label: Relevant other addons
+      description: "Include versions if a conflict appears to be involved."
