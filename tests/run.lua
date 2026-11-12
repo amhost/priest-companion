@@ -37,9 +37,9 @@ for _,id in ipairs({"priest","quests","preparation","references","goals","kills"
     T.ok(ns.modules[id] or ns.modules[alternate],"requested module present: "..id)
 end
 
-for _,file in ipairs({"goals_cases.lua","quest_kill_cases.lua","gameplay_cases.lua"}) do
+for _,file in ipairs({"goals_cases.lua","quest_kill_cases.lua","gameplay_cases.lua","dungeon_quest_cases.lua"}) do
     local cases=assert(loadfile(root.."/tests/"..file))()
-    cases(T,ns)
+    cases(T,ns,Mock)
     print("PASS: "..file)
 end
 
