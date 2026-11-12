@@ -10,6 +10,9 @@ Core.lua
 UI.lua
 Modules\Priest.lua
 Modules\Quests.lua
+Data\DungeonQuests.lua
+DungeonQuestStatus.lua
+Modules\DungeonQuests.lua
 Modules\Preparation.lua
 Modules\References.lua
 Modules\Goals.lua

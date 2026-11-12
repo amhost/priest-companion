@@ -114,6 +114,21 @@ The diagnostic report omits character names, quest data, lists, target history a
 
 ## Validation status
 
+### Unpublished dungeon-quest prototype
+
+An optional **Dungeon quests (prototype)** panel adds a small, attributed MIT
+community catalog for The Deadmines, Hall of Thanes and Ragefire Chasm.
+Use **/pc dungeons** or enable it in **/pc**. It shows Missing, In Log, Completed
+and Unknown progress separately from uncertain pickup eligibility. Every dungeon
+is explicitly partial and provisional; Missing does not mean available.
+
+See [the prototype review](docs/DUNGEON-QUEST-PROTOTYPE.md) for provenance,
+licensing, 523 passing offline assertions and the unrun live validation plan.
+The Quest Helper, optional auto-accept and manual preparation checklist retain
+their existing behavior. No additional addon or CurseForge installation is needed.
+
+### Alpha validation
+
 Read `docs/VALIDATION.md` for the exact executed checks and the short in-game verification plan. Offline tests establish behavior only in their Lua 5.4/mock scope. They do not establish WoW's native Lua compatibility, secure execution or runtime behavior.
 
 The `16001` target is grounded in the current [Questie Forever manifest](https://github.com/Questie/Questie/blob/master/Questie_Forever.toc), not an observation of the user's installed client. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
