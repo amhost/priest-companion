@@ -2,25 +2,29 @@
 
 Movable panels for a priest's leveling and dungeon routine in World of Warcraft: Forever.
 
-**Version: 0.1.0-alpha.1.** Targets interface **16001**. This first alpha has passed offline Lua and mocked API checks. It has **not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
+**Version: 0.1.0-alpha.2.** Targets interface **16001**. Offline Lua and mocked API checks pass. The updated UI has **not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
 
 No addon manager, external service or additional addon is required. All code is included and readable. The addon is free under the MIT license.
 
 [Download releases](https://github.com/amhost/priest-companion/releases) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
+
+**Quick compact setup:** enter `/pc compact`. This shows health/mana bars and the layout's quest or preparation panel, sets 80% scale, removes backgrounds, and leaves content at 85%. `/pc restorelayout` undoes it. Existing arrangements are preserved until you choose the preset.
+
+**Fine tune a panel:** enter `/pc appearance priest`, or use a panel's **Appearance** button in `/pc`. Background and content opacity each run from 0% to 100%; scale runs from 50% to 150%. See [UI controls](docs/UI-CONTROLS.md) and [manual companion-addon downloads](docs/COMPANION-ADDONS.md).
 
 ## Features
 
 | Feature | Alpha behavior |
 | --- | --- |
 | Movable panels | Unlock, drag the title, resize from the bottom-right corner, and lock again. Position, size, scale, opacity and visibility are saved per layout. Movement and layout changes wait for combat to end. |
-| Priest information | Own health and mana displays, plus a list of spell references you choose using real client spell names or IDs. Restricted values are used only in supported display setters; readable numbers are not assumed. |
+| Priest information | Health and mana bars, with an optional bars-only view. The full view includes spell references you choose using client spell names or IDs. Restricted values are used only in supported display setters. |
 | Quest Helper | Current quest titles and objective progress. Select a quest for Details or Map. Map guidance uses coordinates returned by the client. Optional NPC quest auto-accept, with Shift bypass, defaults off. |
 | Healing and Leveling layouts | Two independent arrangements. Switching layouts changes this addon's panels, not talents or gameplay bindings. |
 | Dungeon preparation | Editable manual checklist, minimum equipment durability, broken-item count, and general bag-space summary. Combat shows the last out-of-combat snapshot. |
 | Keybind and mouseover references | Actual bindings for the 12 main action buttons, personal notes, and copyable mouseover macro text for a spell you select. |
 | Professions and shopping | Manual goals and item-quantity targets, categories, editing, manual completion and delete/undo. Readable carried inventory is compared with your target. Bank storage and charges are excluded. |
 | Kill Tracker | Automatic named XP-credit kills, separate manual labeled kills, session and all-time counts, and target notes. Coverage is explicitly partial. |
-| Interface preferences | Addon font sizing, panel background opacity, optional out-of-combat cursor tooltips, and access to native Edit Mode when available. |
+| Appearance | Background/content opacity and scale sliders for one or all gameplay panels, hidden titles while locked, a Priest bars-only option, font sizing, optional cursor tooltips, and native Edit Mode access. |
 
 ## Install without an addon manager
 
@@ -32,15 +36,15 @@ No addon manager, external service or additional addon is required. All code is 
 6. Start Forever. On the character-selection screen, open **AddOns** and enable **Priest Companion** for the character.
 7. Enter the world and type `/pc` in chat. The manager opens automatically the first time.
 
-If updating an existing installation, exit the game and rename the old addon folder to `PriestCompanion-backup` before copying the new one. A renamed folder whose basename no longer matches its TOC is not loaded as this addon. Keep the backup outside `AddOns` if you prefer an uncluttered list. Saved settings are stored by WoW separately from addon code.
+If updating, exit the game and move the old `PriestCompanion` folder to a backup location outside `AddOns`, then copy the new folder into `AddOns`. Keep your `WTF` folder and saved settings. This avoids stale addon files while retaining a recoverable code backup.
 
 ## Arrange the panels
 
-Type `/pc unlock`, drag each panel by its title, and resize with the bottom-right grip. Type `/pc lock` when finished. The manager's minus/plus controls adjust each panel's scale.
+Type `/pc unlock`, drag each panel by its title, and resize with the bottom-right grip. Type `/pc lock` when finished. Hidden titles and zero-opacity panels temporarily reveal editing handles when unlocked. The manager's **Appearance** buttons open the sliders for each panel.
 
 Choose **Healing** or **Leveling** in the manager to arrange that layout separately. The initial Healing layout shows Priest information, Dungeon preparation and Keybind references. The initial Leveling layout shows Priest information, Quest Helper, Professions & Shopping and Kill Tracker. Every feature panel can be enabled in either layout.
 
-Use the manager's **Reset layout** button if an arrangement becomes inconvenient. **Undo reset** restores the last arrangement saved before a reset. Resetting a layout keeps goals, notes and kill history.
+Choose **Compact layout** to show Priest bars plus Quest Helper in Leveling, or Priest bars plus Dungeon preparation in Healing. Other panels remain available in the manager. **Undo layout** restores the single arrangement saved before the latest Compact layout or Reset layout action. These actions keep goals, spell references, notes and kill history.
 
 ## Commands
 
@@ -49,6 +53,9 @@ Use the manager's **Reset layout** button if an arrangement becomes inconvenient
 | `/pc` or `/priestcompanion` | Open or close the manager |
 | `/pc unlock` | Enable dragging and resizing outside combat |
 | `/pc lock` | Stop movement and save placement |
+| `/pc compact` | Apply the compact preset to the current layout, retaining an undo copy |
+| `/pc appearance` | Open appearance controls for all gameplay panels |
+| `/pc appearance priest` | Open appearance controls for the Priest panel |
 | `/pc layout healing` | Apply or queue the Healing layout |
 | `/pc layout leveling` | Apply or queue the Leveling layout |
 | `/pc show priest` | Show Priest information |
@@ -57,11 +64,11 @@ Use the manager's **Reset layout** button if an arrangement becomes inconvenient
 | `/pc show keys` | Show Keybind and mouseover references |
 | `/pc show goals` | Show Professions & Shopping |
 | `/pc show kills` | Show Kill Tracker |
-| `/pc show appearance` | Show Interface preferences |
+| `/pc show appearance` | Show Appearance |
 | `/pc show all` | Show all panels |
 | `/pc hide all` | Hide all panels; `/pc` still opens the manager |
 | `/pc resetlayout` | Reset current arrangement, retaining a recovery copy |
-| `/pc restorelayout` | Restore the arrangement saved before the last reset |
+| `/pc restorelayout` | Restore the arrangement saved before the latest Compact layout or Reset layout action |
 | `/pc kill Practice target` | Record one manual kill under the label Practice target |
 | `/pc killsession` | Start fresh session counters while retaining all-time history |
 | `/pc diagnostics` | Open a copyable build/capability report |
@@ -71,6 +78,8 @@ Panel-manager, lock and layout-switch actions are also declared for WoW's keybin
 ## Use the modules
 
 ### Priest information
+
+In Appearance, enable **Priest: health and mana bars only** for a small resource display. Disable it to return to the previous full panel size and chosen references. This preference is separate for Healing and Leveling.
 
 Enter a spell name or numeric spell ID and choose **Add**. The client supplies its spell name and learned status where available. The references are a list you choose. They are not live healing priorities or an automatic spell selector.
 
@@ -102,9 +111,11 @@ Automatic counts mean **readable named kill-XP messages received by this charact
 
 Enter a target label and optional note, then choose **+1 manual** for a manual count. Manual counts never increase the automatic counter. **New session** clears session counters while keeping all-time history. Sessions also restart when the UI reloads or the client restarts. All-time history is per character. Target detail is bounded at approximately 200 named entries, after which new names are combined in an Other targets row.
 
-### Interface preferences
+### Appearance
 
-Font and opacity controls apply to this addon's panels. The optional cursor-tooltip setting defaults off and applies only outside combat. Native Edit Mode remains the place to arrange Blizzard's own frames.
+Use Prev/Next to select a panel or **All panels**. Background opacity affects the background, border and title strip; content opacity affects bars, text and controls separately. **Hide title when locked** removes the title and close button while locked. At 0% content opacity, content is hidden and releases input focus. `/pc` and `/pc appearance` stay readable for recovery.
+
+Appearance changes apply outside combat and are saved per layout. Configuration and copy dialogs are excluded from gameplay opacity and scale edits. Font size and optional cursor tooltips apply to both layouts. Native Edit Mode arranges Blizzard frames. These controls do not configure third-party nameplate addons.
 
 ## Privacy and scope
 

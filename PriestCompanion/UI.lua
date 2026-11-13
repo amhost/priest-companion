@@ -80,6 +80,74 @@ function UI.Check(parent, text, x, y, onClick)
     return check
 end
 
+function UI.Slider(parent, label, x, y, width, low, high, step, onChanged)
+    local control = CreateFrame("Frame", nil, parent)
+    control:SetPoint("TOPLEFT", parent, "TOPLEFT", x or 0, -(y or 0))
+    control:SetSize(width or 280, 48)
+    control.label = UI.Text(control, label, 0, 0, 12, (width or 280) - 70)
+    control.valueText = UI.Text(control, "", 0, 0, 12, 65, UI.accent)
+    control.valueText:ClearAllPoints()
+    control.valueText:SetPoint("TOPRIGHT", 0, 0)
+    control.valueText:SetJustifyH("RIGHT")
+    local slider = CreateFrame("Slider", nil, control)
+    control.slider = slider
+    slider:SetPoint("TOPLEFT", 0, -23)
+    slider:SetPoint("TOPRIGHT", 0, -23)
+    slider:SetHeight(18)
+    slider:SetOrientation("HORIZONTAL")
+    slider:SetMinMaxValues(low, high)
+    slider:SetValueStep(step)
+    if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
+    local track = slider:CreateTexture(nil, "BACKGROUND")
+    track:SetPoint("LEFT", 0, 0); track:SetPoint("RIGHT", 0, 0)
+    track:SetHeight(4)
+    track:SetColorTexture(0.29, 0.28, 0.38, 1)
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+    local thumb = slider:GetThumbTexture()
+    thumb:SetSize(10, 18)
+    thumb:SetVertexColor(UI.accent[1], UI.accent[2], UI.accent[3], 1)
+    control.enabled = true
+    local function rounded(value)
+        return ns.Clamp(low + math.floor((value - low) / step + 0.5) * step, low, high, low)
+    end
+    slider:SetScript("OnValueChanged", function(_, value)
+        value = ns.Number(value)
+        if not value then return end
+        value = rounded(value)
+        control.valueText:SetText(string.format("%d%%", value))
+        if control.syncing or not control.enabled then return end
+        if control.lastValue == value then return end
+        control.lastValue = value
+        if onChanged then onChanged(value) end
+    end)
+    control.SetDisplayValue = function(self, value, mixed)
+        value = rounded(ns.Number(value, low))
+        self.syncing = true
+        self.lastValue = value
+        slider:SetValue(value)
+        self.syncing = false
+        self.valueText:SetText(mixed and "Mixed" or string.format("%d%%", value))
+    end
+    control.SetEnabled = function(self, value)
+        self.enabled = value == true
+        slider:EnableMouse(self.enabled)
+        slider:EnableMouseWheel(self.enabled)
+        self:SetAlpha(self.enabled and 1 or 0.5)
+    end
+    slider:EnableMouse(true)
+    slider:EnableMouseWheel(true)
+    slider:SetScript("OnMouseWheel", function(_, delta)
+        if control.enabled and ns.Number(delta) then
+            slider:SetValue(rounded(ns.Number(slider:GetValue(), low) + delta * step))
+        end
+    end)
+    control:HookScript("OnSizeChanged", function(self, newWidth)
+        self.label:SetWidth(math.max(100, newWidth - 70))
+    end)
+    control:SetDisplayValue(low)
+    return control
+end
+
 function UI.Tooltip(widget, textOrFunction)
     widget:HookScript("OnEnter", function(self)
         if not GameTooltip then return end
@@ -106,6 +174,14 @@ function UI.ScrollArea(parent, top, bottom)
     return scroll, content
 end
 
+function UI.ClearFocusWithin(parent, depth)
+    if (depth or 0) > 12 or not parent then return end
+    if type(parent.ClearFocus) == "function" then parent:ClearFocus() end
+    if type(parent.GetChildren) == "function" then
+        for _, child in ipairs({parent:GetChildren()}) do UI.ClearFocusWithin(child, (depth or 0) + 1) end
+    end
+end
+
 function UI.CreatePanel(module)
     local frame = CreateFrame("Frame", "PriestCompanionPanel_" .. module.id, UIParent, "BackdropTemplate")
     frame:SetSize(module.width or 320, module.height or 280)
@@ -114,7 +190,7 @@ function UI.CreatePanel(module)
     frame:SetMovable(true)
     frame:SetResizable(true)
     frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
+    frame:EnableMouse(false)
     if frame.SetResizeBounds then
         frame:SetResizeBounds(module.minWidth or 260, module.minHeight or 160, 1000, 900)
     elseif frame.SetMinResize then frame:SetMinResize(module.minWidth or 260, module.minHeight or 160) end
@@ -123,15 +199,16 @@ function UI.CreatePanel(module)
     local header = CreateFrame("Button", nil, frame)
     header:SetPoint("TOPLEFT", 1, -1)
     header:SetPoint("TOPRIGHT", -26, -1)
-    header:SetHeight(29)
+    header:SetHeight(22)
+    header:SetFrameLevel(frame:GetFrameLevel() + 10)
     header:RegisterForDrag("LeftButton")
     local headerBG = header:CreateTexture(nil, "BACKGROUND")
     headerBG:SetAllPoints()
     headerBG:SetColorTexture(0.12, 0.105, 0.18, 1)
-    frame.title = UI.Text(header, module.title, 10, 7, 13, (module.width or 320) - 100, UI.accent)
-    frame.moveLabel = UI.Text(header, "", 0, 8, 10, 55, {0.72,0.74,0.8})
+    frame.title = UI.Text(header, module.title, 8, 4, 12, (module.width or 320) - 100, UI.accent)
+    frame.moveLabel = UI.Text(header, "", 0, 4, 10, 55, {0.72,0.74,0.8})
     frame.moveLabel:ClearAllPoints()
-    frame.moveLabel:SetPoint("TOPRIGHT", -6, -8)
+    frame.moveLabel:SetPoint("TOPRIGHT", -6, -4)
     frame.moveLabel:SetJustifyH("RIGHT")
     header:SetScript("OnDragStart", function()
         if ns.db and not ns.db.locked and not ns.IsCombat() then frame:StartMoving(); frame:Raise() end
@@ -140,14 +217,15 @@ function UI.CreatePanel(module)
     header:SetScript("OnMouseDown", function() frame:Raise() end)
     UI.Tooltip(header, "Drag this title when panels are unlocked. Use /pc unlock or the panel manager.")
 
-    local close = UI.Button(frame, "x", 0, 0, 22, 22, function() ns.SetPanelVisible(module.id, false) end)
+    local close = UI.Button(frame, "x", 0, 0, 18, 18, function() ns.SetPanelVisible(module.id, false) end)
     close:ClearAllPoints()
-    close:SetPoint("TOPRIGHT", -4, -4)
+    close:SetPoint("TOPRIGHT", -3, -3)
+    close:SetFrameLevel(header:GetFrameLevel() + 1)
     UI.Tooltip(close, "Hide this panel in the current layout. Restore it from /pc.")
 
     frame.body = CreateFrame("Frame", nil, frame)
-    frame.body:SetPoint("TOPLEFT", 10, -38)
-    frame.body:SetPoint("BOTTOMRIGHT", -10, 16)
+    frame.body:SetPoint("TOPLEFT", 8, -30)
+    frame.body:SetPoint("BOTTOMRIGHT", -8, 8)
     if frame.body.SetClipsChildren then frame.body:SetClipsChildren(true) end
 
     local grip = CreateFrame("Button", nil, frame)
@@ -161,13 +239,65 @@ function UI.CreatePanel(module)
     grip:SetScript("OnDragStop", function() frame:StopMovingOrSizing(); ns.SavePlacement(module.id) end)
     UI.Tooltip(grip, "Drag to resize. Size is saved separately for Healing and Leveling.")
     frame.grip = grip
+    frame.header, frame.headerBG, frame.close = header, headerBG, close
 
-    frame.UpdateLock = function(self)
+    frame.UpdateAppearance = function(self)
+        if not ns.db then return end
+        local settings = ns.PanelSettings(module.id)
+        local configurable = ns.IsCustomizablePanel(module.id)
         local unlocked = ns.db and not ns.db.locked and not ns.IsCombat()
+        local background = configurable and settings.opacity or 0.94
+        local content = configurable and settings.contentOpacity or 1
+        if unlocked and configurable then
+            background, content = math.max(background, 0.18), math.max(content, 0.35)
+        end
+        self:SetAlpha(1)
+        self:SetBackdropColor(0.055, 0.06, 0.085, background)
+        self:SetBackdropBorderColor(0.28, 0.27, 0.37, background)
+        headerBG:SetColorTexture(unlocked and 0.18 or 0.12, 0.105, unlocked and 0.25 or 0.18, background)
+        local hideHeader = configurable and settings.hideHeader
+        header:SetShown(not hideHeader or unlocked)
+        close:SetShown(not hideHeader or unlocked)
+        close:SetBackdropColor(0.12, 0.12, 0.18, background)
+        close:SetBackdropBorderColor(0.28, 0.27, 0.37, background)
+        self.body:SetAlpha(content)
+        if content == 0 and self.body:IsShown() then UI.ClearFocusWithin(self.body) end
+        self.body:SetShown(content > 0)
+        -- The shell never intercepts gameplay clicks while locked. Actual child
+        -- controls keep their own hit testing, and zero-alpha content is hidden.
+        self:EnableMouse(unlocked)
+        -- Editing temporarily adds room for the title instead of drawing it on
+        -- top of the resource bars. SavePlacement excludes this extra height.
+        local extra = hideHeader and unlocked and 22 or 0
+        if (self.pcHeaderExtra or 0) ~= extra then
+            local minWidth, minHeight = ns.PanelMinimum(module.id, settings)
+            local baseHeight = math.max(minHeight, self:GetHeight() - (self.pcHeaderExtra or 0))
+            local x, y = self:GetCenter()
+            local px, py = UIParent:GetCenter()
+            local scale = self:GetEffectiveScale() / UIParent:GetEffectiveScale()
+            if ns.Number(x) and ns.Number(y) and ns.Number(px) and ns.Number(py) and ns.Number(scale) and scale > 0 then
+                self:ClearAllPoints()
+                self:SetPoint("CENTER", UIParent, "CENTER", x - px / scale, y - py / scale)
+            end
+            self.pcHeaderExtra = extra
+            self:SetHeight(baseHeight + extra)
+            if self.SetResizeBounds then self:SetResizeBounds(minWidth, minHeight + extra, 1000, 900 + extra)
+            elseif self.SetMinResize then self:SetMinResize(minWidth, minHeight + extra) end
+        end
+        local inset = hideHeader and not unlocked and 8 or 30
+        if self.pcBodyInset ~= inset then
+            self.pcBodyInset = inset
+            self.body:ClearAllPoints()
+            self.body:SetPoint("TOPLEFT", 8, -inset)
+            self.body:SetPoint("BOTTOMRIGHT", -8, 8)
+            ns.Refresh(module.id)
+        end
         self.grip:SetShown(unlocked)
         self.moveLabel:SetText(unlocked and "drag" or "")
-        headerBG:SetColorTexture(unlocked and 0.18 or 0.12, 0.105, unlocked and 0.25 or 0.18, 1)
     end
+    frame.UpdateLock = frame.UpdateAppearance
+    close:HookScript("OnEnter", function() frame:UpdateAppearance() end)
+    close:HookScript("OnLeave", function() frame:UpdateAppearance() end)
     frame:SetScript("OnSizeChanged", function(self, width)
         self.title:SetWidth(math.max(100, width - 110))
         if ns.ready and not ns.applying then ns.Refresh(module.id) end

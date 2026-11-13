@@ -2,7 +2,7 @@
 ## Title: Priest Companion
 ## Notes: Movable priest, quest, preparation, reference, goals and kill-tracking panels.
 ## Author: Priest Companion contributors
-## Version: 0.1.0-alpha.1
+## Version: 0.1.0-alpha.2
 ## SavedVariablesPerCharacter: PriestCompanionDB
 ## IconTexture: Interface\Icons\ClassIcon_Priest
 

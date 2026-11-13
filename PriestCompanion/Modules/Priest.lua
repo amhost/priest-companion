@@ -143,6 +143,11 @@ ns.RegisterModule({
         self.health = resourceBar(self.body, 44, { 0.38, 0.75, 0.58 })
         self.manaLabel = ns.UI.Text(self.body, "Mana", 0, 72, 12, 300)
         self.mana = resourceBar(self.body, 91, { 0.49, 0.57, 0.92 })
+        self.healthCompact = ns.UI.Text(self.health, "", 6, 3, 11, 288)
+        self.manaCompact = ns.UI.Text(self.mana, "", 6, 3, 11, 288)
+        self.healthCompact:SetWordWrap(false)
+        self.manaCompact:SetWordWrap(false)
+        self.healthCompact:Hide(); self.manaCompact:Hide()
         self.mode = ns.UI.Text(self.body, "", 0, 119, 11, 300, { 0.72, 0.74, 0.82 })
         self.heading = ns.UI.Text(self.body, "Chosen spell references", 0, 151, 12, 300)
         self.spellInput = ns.UI.Input(self.body, 6, 172, 218, 24, "Spell name or ID", function(text)
@@ -162,11 +167,33 @@ ns.RegisterModule({
         self.body:HookScript("OnSizeChanged", function() ns.Refresh("priest") end)
     end,
     Refresh = function(self)
+        local barsOnly = ns.PanelSettings("priest").barsOnly
+        if self.pcBarsOnly ~= barsOnly then
+            self.pcBarsOnly = barsOnly
+            if barsOnly then self.spellInput:ClearFocus() end
+            for _, widget in ipairs({self.identity, self.healthLabel, self.manaLabel, self.mode,
+                self.heading, self.spellInput, self.addButton, self.scroll}) do widget:SetShown(not barsOnly) end
+            self.healthCompact:SetShown(barsOnly); self.manaCompact:SetShown(barsOnly)
+            for i, bar in ipairs({self.health, self.mana}) do
+                local y = barsOnly and (i - 1) * 26 or (i == 1 and 44 or 91)
+                bar:ClearAllPoints()
+                bar:SetPoint("TOPLEFT", self.body, "TOPLEFT", 0, -y)
+                bar:SetPoint("TOPRIGHT", self.body, "TOPRIGHT", 0, -y)
+                bar:SetHeight(barsOnly and 20 or 19)
+            end
+        end
         local class = ns.Text(ns.Call(UnitClass, "player"), "Character")
         local level = ns.Number(ns.Call(UnitLevel, "player"))
         self.identity:SetText(class .. (level and "  |  Level " .. math.floor(level) or ""))
         updateResource(self.health, self.healthLabel, "Health", ns.Call(UnitHealth, "player"), ns.Call(UnitHealthMax, "player"))
         updateResource(self.mana, self.manaLabel, "Mana", ns.Call(UnitPower, "player", 0), ns.Call(UnitPowerMax, "player", 0))
+        if barsOnly then
+            self.healthCompact:SetText(self.healthLabel:GetText())
+            self.manaCompact:SetText(self.manaLabel:GetText())
+            self.healthCompact:SetWidth(math.max(100, self.body:GetWidth() - 12))
+            self.manaCompact:SetWidth(math.max(100, self.body:GetWidth() - 12))
+            return
+        end
         self.mode:SetText(ns.IsCombat() and "Combat: display only. Spell references stay unchanged." or "Out of combat. Spell references are chosen by you.")
         local width = math.max(250, self.body:GetWidth())
         self.identity:SetWidth(width)

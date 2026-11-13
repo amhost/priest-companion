@@ -2,7 +2,7 @@
 
 ## Executed offline checks
 
-Date: November 10, 2026. Environment: managed Linux workspace, Python 3, installed `liblua5.4.so.0` through ctypes. No third-party Python packages are used by the check runner.
+Date: November 13, 2026 (UTC). Version: 0.1.0-alpha.2. Environment: managed Linux workspace, Python 3, installed `liblua5.4.so.0` through ctypes. No third-party Python packages are used by the check runner.
 
 Command, run from the source project's root:
 
@@ -17,12 +17,15 @@ PASS: syntax for 10 addon Lua files (Lua 5.4 parser)
 PASS: goals_cases.lua
 PASS: quest_kill_cases.lua
 PASS: gameplay_cases.lua
+PASS: appearance_cases.lua
 PASS: integration, layouts, combat queue, secret guards and diagnostics
-PASS: 333 assertions in offline Lua 5.4 + bounded WoW UI/API mocks
+PASS: 884 assertions in offline Lua 5.4 + bounded WoW UI/API mocks
 NOT TESTED: actual WoW client, secure execution, rendering, combat restrictions, locale behavior or live saved-file loading
 ```
 
 Coverage includes localized kill-message formats, unnamed-XP rejection, invalid input, manual/automatic provenance, quest normalization, missing map context, optional APIs, goals and delete/undo, bank-exclusion flags, learned-spell states, macro-input validation, equipment and bag summaries, scaled layout persistence, separate profile state, combat deferral, deleted-checklist persistence, copy-dialog focus and scrolling, secret-resource pass-through and exclusion from saved state, and private-data exclusion from diagnostics. Quest acceptance checks cover default-off behavior, checkbox persistence, hidden-panel event handling, Shift bypass, combat, repeated events, special offers, giver filtering, missing APIs, API errors and restricted values.
+
+The UI cases exercise real slider callbacks with 0% values, silent display synchronization, background/header/border transparency independent of content, hidden-body input-focus release, configuration recovery, temporary edit-header sizing, screen-edge anchor stability, scale changes with a scaled UIParent, compact presets and undo, bars-only size restoration, combat guards and persisted zero values. These cases caught and verified fixes for a missing slash-command route and temporary-header position drift.
 
 The mocks deliberately do not emulate Blizzard's secure execution or native rendering. A pass is not evidence that the addon is already compatible with a live client. Source uses Lua 5.1-compatible syntax, but only the Lua 5.4 parser/runtime has been exercised here.
 
@@ -61,7 +64,9 @@ Add one checklist entry, one personal reference note and one manual shopping goa
 | References | Open `/pc show keys`, compare a known main-bar binding, enter a learned helpful spell and click View / copy | Correct binding and spell text; copying does not create a macro automatically |
 | Goals | Open `/pc show goals`, add a target using a known carried item's ID or link, then change the carried quantity during normal play | Carried and remaining counts update; manual completion stays independent; Delete/Undo restores the selected row |
 | Kills | Open `/pc show kills`, note counts, defeat one ordinary XP-granting creature, then add one manual target | At most the supported XP-credit event adds an automatic count; the manual action adds only a manual count |
-| Interface | Open `/pc show appearance`, increase text size and adjust opacity; enable cursor tooltips and hover an ordinary item outside combat | Text remains readable, controls remain usable, and the tooltip option is reversible |
+| Interface | Open `/pc appearance priest`, drag Background to 0% and Content to 85%, enable bars-only and hide-title, then lock. Try Content at 0%, recover through `/pc appearance`, unlock and resize, then lock again. | The bars have no background, configuration stays readable, zero content releases interaction, and repeated unlock/lock does not shift or grow the panel. |
+
+For the remaining appearance and cold-start checks, follow [UI controls > Verify in the game](UI-CONTROLS.md#verify-in-the-game). Enable cursor tooltips and hover an ordinary item outside combat to check that the option remains reversible.
 
 ### 5. Verify combat deferral and coexistence
 
@@ -71,7 +76,7 @@ Complete a normal questing or dungeon session with the other addons you normally
 
 ### Recovery
 
-If a layout is inconvenient, use `/pc resetlayout`; `/pc restorelayout` undoes the last reset. If this alpha causes game UI problems, log out to character selection, choose **AddOns**, uncheck **Priest Companion**, and log back in. This disables the addon without deleting its saved settings or your game data.
+If a layout is inconvenient, use `/pc resetlayout`; `/pc restorelayout` undoes the last reset or Compact preset. If this alpha causes game UI problems, log out to character selection, choose **AddOns**, uncheck **Priest Companion**, and log back in. This disables the addon without deleting its saved settings or your game data.
 
 ## Packaging checks
 

@@ -1,28 +1,37 @@
-# Priest Companion 0.1.0-alpha.1
+# Priest Companion 0.1.0-alpha.2
 
-Priest Companion brings a priest's leveling and dungeon routine into a set of movable panels for WoW: Forever.
+This UI alpha makes Priest Companion smaller and gives each gameplay panel independent transparency controls.
 
-Every panel can be moved, resized, shown or hidden. Healing and Leveling keep separate arrangements. Start with `/pc`, then use `/pc unlock` to arrange your screen.
+## Compact setup
 
-This first alpha includes:
+After updating, enter `/pc compact` outside combat. This applies 80% scale, 0% background, 85% content, hidden titles and a health/mana-only Priest panel. Leveling shows Priest and Quest Helper; Healing shows Priest and Dungeon preparation. Other panels remain accessible from `/pc`. Enter `/pc restorelayout` to undo the preset.
 
-- Your health, mana and chosen spell references.
-- Current quests, objective progress and available client-provided map guidance.
-- Optional NPC quest auto-accept, off by default, with Shift bypass for reading.
-- A dungeon preparation checklist with equipment and general-bag summaries.
-- Main action-button binding references, personal notes and copyable mouseover macros.
-- Profession and shopping goals with carried item counts and quantities still needed.
-- XP-credit kill counts, separate manual counts, session totals and all-time history.
-- Addon text and background controls, plus optional out-of-combat cursor tooltips.
+For individual controls, enter `/pc appearance priest` or choose a panel's **Appearance** button in `/pc`:
 
-Download `PriestCompanion-0.1.0-alpha.1.zip` and copy its `PriestCompanion` folder into the Forever client's `Interface\AddOns` folder. No addon manager is required.
+- **Background opacity:** 0-100%, including the border and title strip.
+- **Content opacity:** 0-100%, separately controlling bars, text and interactive content.
+- **Scale:** 50-150%, keeping the panel centered on its current position subject to screen clamping.
+- **Hide title when locked:** removes the title and close button.
+- **Priest bars only:** hides the reference editor and restores its prior full size when switched off.
 
-**Alpha status:** The target is interface 16001. Offline syntax and mocked behavior checks pass. The addon has not yet been tested in the actual WoW Forever client, so native rendering, saved-variable loading, protected combat behavior and other-addon compatibility remain unverified.
+Each slider moves in 1% steps. Values are saved separately for Healing and Leveling. Configuration windows stay readable. `/pc unlock` temporarily reveals drag handles and faint content, including when saved opacity is zero; `/pc lock` restores the chosen appearance. Existing settings, notes, goals, spell references and kill history are retained. Installing the update does not automatically replace an existing layout with Compact.
 
-The quest helper uses the current log and coordinates the client supplies. The automatic kill counter covers named XP-credit messages, including shared group credit; it does not cover every kill. Manual counts remain separate. The addon does not choose healing targets or cast spells.
+## Install or update
 
-To enable quest acceptance, enter `/pc show quests` and check **Auto-accept NPC quests**. Hold **Shift before opening an offer** to keep it manual. Only ordinary NPC quest details are eligible outside combat. Shared/unknown givers, special quest flows and PvP confirmations stay manual. The addon does not select gossip options, complete quests or choose rewards. The preference stays active across both layouts and while its panel is hidden; uncheck it to disable.
+Download `PriestCompanion-0.1.0-alpha.2.zip`. Close WoW, move the previous `PriestCompanion` folder outside `Interface\AddOns` as a backup, and copy the new archive's `PriestCompanion` folder into the Forever client's `Interface\AddOns`. Keep the `WTF` folder and saved settings. No addon manager is required.
 
-Useful early feedback: exact client build, which panel you used, reproduction steps, expected result, actual result and whether it occurred in combat. `/pc diagnostics` creates a concise report without character names or personal lists.
+The package also includes `docs/UI-CONTROLS.md` and a manual download guide for the ten suggested companion addons. Those third-party addons are not bundled. Priest Companion's appearance controls apply to its own panels; nameplate styling remains in the nameplate addon's settings.
+
+## Validation and scope
+
+**884 assertions passed** in offline Lua 5.4 with bounded WoW UI/API mocks, including zero-opacity callbacks, hidden-panel recovery, scale/position preservation, temporary edit-header sizing, layout undo, focus handling and combat guards. Packaging checks validate manifest paths, XML, ZIP integrity and checksums.
+
+**Native WoW Forever testing is still pending.** The declared target is interface 16001. Offline checks do not establish live rendering, mouse hit testing, secure execution, saved-file loading, locale behavior or coexistence with other addons.
+
+This release is a UI update to the original alpha. It does **not** include the separate dungeon quest prototype in [PR #1](https://github.com/amhost/priest-companion/pull/1). The released quest helper still reads the current quest log and available client-provided map guidance; it does not have a complete database of missing dungeon quests.
+
+The original feature panels and optional NPC quest auto-accept remain available. Quest auto-accept starts off, supports Shift bypass and does not choose gossip, turn in quests or select rewards. Automatic kill counts cover named XP-credit messages; manual counts remain separate.
+
+Useful feedback: client version/build, panel, reproduction steps, expected and actual appearance, and whether combat was active. `/pc diagnostics` creates a report without character names or personal lists.
 
 Free, original source, MIT licensed. English interface text; XP-message parsing uses the client's available localized templates, with native-locale verification still pending.
