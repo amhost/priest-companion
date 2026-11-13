@@ -1,6 +1,6 @@
 local addonName, ns = ...
 
-ns.VERSION = "0.1.0-alpha.1"
+ns.VERSION = "0.1.0-alpha.2"
 ns.TARGET_INTERFACE = 16001
 ns.Models = ns.Models or {}
 ns.modules, ns.order, ns.frames = {}, {}, {}
@@ -178,6 +178,17 @@ local placements = {
 local validPoints = { TOPLEFT=true, TOP=true, TOPRIGHT=true, LEFT=true, CENTER=true,
     RIGHT=true, BOTTOMLEFT=true, BOTTOM=true, BOTTOMRIGHT=true }
 
+function ns.IsCustomizablePanel(id)
+    local module = ns.modules[id]
+    return module ~= nil and not module.internal and id ~= "appearance"
+end
+
+function ns.PanelMinimum(id, settings)
+    local module = ns.modules[id]
+    if id == "priest" and settings and settings.barsOnly then return 200, settings.hideHeader and 68 or 92 end
+    return module.minWidth or 260, module.minHeight or 160
+end
+
 function ns.PanelSettings(id, layout)
     layout = layout or ns.db.layout
     if layout ~= "Healing" and layout ~= "Leveling" then layout = "Leveling" end
@@ -189,12 +200,18 @@ function ns.PanelSettings(id, layout)
     local value = ns.Defaults(ns.db.layouts[layout][id], {
         point=default[1], relativePoint=default[1], x=default[2], y=default[3],
         width=module.width or 320, height=module.height or 280,
-        scale=1, opacity=0.94, shown=enabled,
+        scale=ns.IsCustomizablePanel(id) and 0.85 or 1, opacity=0.94, shown=enabled,
+        contentOpacity=1, hideHeader=false, barsOnly=false,
     })
-    value.width = clamp(value.width, module.minWidth or 260, 1000, module.width or 320)
-    value.height = clamp(value.height, module.minHeight or 160, 900, module.height or 280)
-    value.scale = clamp(value.scale, 0.65, 1.5, 1)
-    value.opacity = clamp(value.opacity, 0.35, 1, 0.94)
+    local minWidth, minHeight = ns.PanelMinimum(id, value)
+    value.width = clamp(value.width, minWidth, 1000, module.width or 320)
+    value.height = clamp(value.height, minHeight, 900, module.height or 280)
+    value.scale = clamp(value.scale, ns.IsCustomizablePanel(id) and 0.5 or 0.85, 1.5, 1)
+    value.opacity = clamp(value.opacity, 0, 1, 0.94)
+    value.contentOpacity = clamp(value.contentOpacity, 0, 1, 1)
+    if not ns.IsCustomizablePanel(id) then
+        value.opacity, value.contentOpacity, value.hideHeader = 0.94, 1, false
+    end
     value.x = clamp(value.x, -10000, 10000, 0)
     value.y = clamp(value.y, -10000, 10000, 0)
     if not validPoints[value.point] then value.point = "CENTER" end
@@ -215,7 +232,8 @@ function ns.SavePlacement(id)
     -- Anchor offsets are in the moved frame's coordinate space. UIParent's
     -- center is converted before subtracting, so changing panel scale is stable.
     settings.x, settings.y = x - px / scale, y - py / scale
-    settings.width, settings.height = frame:GetWidth(), frame:GetHeight()
+    settings.width = frame:GetWidth()
+    settings.height = frame:GetHeight() - (frame.pcHeaderExtra or 0)
 end
 
 function ns.ApplyPanel(id)
@@ -224,16 +242,96 @@ function ns.ApplyPanel(id)
     local settings = ns.PanelSettings(id)
     ns.applying = true
     frame:StopMovingOrSizing()
+    frame.pcHeaderExtra = 0
     frame:SetScale(settings.scale)
+    local minWidth, minHeight = ns.PanelMinimum(id, settings)
+    if frame.SetResizeBounds then frame:SetResizeBounds(minWidth, minHeight, 1000, 900)
+    elseif frame.SetMinResize then frame:SetMinResize(minWidth, minHeight) end
     frame:SetSize(settings.width, settings.height)
     frame:ClearAllPoints()
     frame:SetPoint(settings.point, UIParent, settings.relativePoint, settings.x, settings.y)
     if frame.SetClampedToScreen then frame:SetClampedToScreen(true) end
-    if frame.SetBackdropColor then frame:SetBackdropColor(0.055, 0.06, 0.085, settings.opacity) end
     frame:SetShown(settings.shown)
     ns.applying = false
     if frame.UpdateLock then frame:UpdateLock() end
     ns.Refresh(id)
+end
+
+function ns.SetPanelAppearance(id, key, value)
+    if ns.IsCombat() then ns.Notify("Change appearance after combat."); ns.Refresh("appearance"); return false end
+    if key ~= "scale" and key ~= "opacity" and key ~= "contentOpacity" and key ~= "hideHeader" then return false end
+    if key == "hideHeader" then
+        if type(value) ~= "boolean" then return false end
+    elseif not ns.Number(value) then return false end
+    if id ~= "all" and not ns.IsCustomizablePanel(id) then return false end
+    for _, panelID in ipairs(ns.order) do
+        if ns.IsCustomizablePanel(panelID) and (id == "all" or id == panelID) then
+            local settings = ns.PanelSettings(panelID)
+            if key == "scale" then
+                ns.SavePlacement(panelID)
+                local oldScale = settings.scale
+                settings.scale = clamp(value, 0.5, 1.5, 1)
+                -- CENTER offsets use the panel's units. Preserve its screen-space
+                -- center when the slider changes scale, except for screen clamping.
+                settings.x = settings.x * oldScale / settings.scale
+                settings.y = settings.y * oldScale / settings.scale
+                ns.ApplyPanel(panelID)
+            else
+                if key == "hideHeader" then settings[key] = value
+                else settings[key] = clamp(value, 0, 1, 1) end
+                local frame = ns.frames[panelID]
+                if key == "hideHeader" then ns.ApplyPanel(panelID)
+                elseif frame and frame.UpdateAppearance then frame:UpdateAppearance() end
+                ns.Refresh(panelID)
+            end
+        end
+    end
+    ns.Refresh("appearance"); ns.Refresh("settings")
+    return true
+end
+
+function ns.SetPriestBarsOnly(value)
+    if ns.IsCombat() then ns.Notify("Change the priest display after combat."); ns.Refresh("appearance"); return false end
+    if type(value) ~= "boolean" or not ns.modules.priest then return false end
+    local settings = ns.PanelSettings("priest")
+    if settings.barsOnly == value then return true end
+    ns.SavePlacement("priest")
+    if value then
+        settings.expandedWidth, settings.expandedHeight = settings.width, settings.height
+        settings.barsOnly = true
+        settings.width, settings.height = math.min(settings.width, 320), 92
+    else
+        settings.barsOnly = false
+        settings.width = ns.Number(settings.expandedWidth, ns.modules.priest.width)
+        settings.height = ns.Number(settings.expandedHeight, ns.modules.priest.height)
+    end
+    ns.ApplyPanel("priest")
+    ns.Refresh("appearance")
+    return true
+end
+
+function ns.ApplyCompactLayout()
+    if ns.IsCombat() then ns.Notify("Apply compact layout after combat."); return false end
+    for _, id in ipairs(ns.order) do ns.SavePlacement(id) end
+    local layout = ns.db.layout
+    ns.db.previousLayout = {name=layout, panels=ns.Copy(ns.db.layouts[layout])}
+    ns.SetPanelAppearance("all", "scale", 0.8)
+    ns.SetPanelAppearance("all", "opacity", 0)
+    ns.SetPanelAppearance("all", "contentOpacity", 0.85)
+    ns.SetPanelAppearance("all", "hideHeader", true)
+    ns.SetPriestBarsOnly(true)
+    for _, id in ipairs(ns.order) do
+        if ns.IsCustomizablePanel(id) then
+            local settings = ns.PanelSettings(id)
+            settings.shown = id == "priest" or (layout == "Leveling" and id == "quests")
+                or (layout == "Healing" and id == "prep")
+            if id == "priest" then settings.height = 68 end
+            ns.ApplyPanel(id)
+        end
+    end
+    ns.RefreshAll()
+    ns.Notify("Compact " .. layout .. " layout applied. /pc restorelayout undoes it; /pc unlock shows drag handles.")
+    return true
 end
 
 function ns.SetPanelVisible(id, visible)
@@ -340,6 +438,9 @@ function ns.RunCommand(message)
         ns.SetPanelVisible("settings", not ns.PanelSettings("settings").shown)
     elseif command == "lock" then ns.SetLocked(true)
     elseif command == "unlock" then ns.SetLocked(false)
+    elseif command == "compact" then ns.ApplyCompactLayout()
+    elseif command == "appearance" then
+        if ns.OpenAppearance then ns.OpenAppearance(rest) end
     elseif command == "layout" then
         local value = rest:lower()
         if value == "healing" then ns.ApplyLayout("Healing")
@@ -428,6 +529,7 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
             ns.SavePlacement(id)
             if frame.UpdateLock then frame:UpdateLock() end
         end
+        ns.Refresh("appearance"); ns.Refresh("settings")
     elseif event == "PLAYER_REGEN_ENABLED" and ns.ready then
         if ns.pendingLayout then
             local pending = ns.pendingLayout; ns.pendingLayout = nil; ns.ApplyLayout(pending)

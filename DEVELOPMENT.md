@@ -1,6 +1,6 @@
 # Priest Companion development notes
 
-Working release: 0.1.0-alpha.1. Target: WoW Forever interface 16001, declared by current Questie Forever manifests. Runtime compatibility is unverified until tested in the user's game. Original code, no runtime dependencies. Lua 5.1-compatible syntax. No combat automation, arbitrary file/network access, or protected-data bypasses.
+Working release: 0.1.0-alpha.2. Target: WoW Forever interface 16001, declared by current Questie Forever manifests. Runtime compatibility is unverified until tested in the user's game. Original code, no runtime dependencies. Lua 5.1-compatible syntax. No combat automation, arbitrary file/network access, or protected-data bypasses.
 
 ## Shared module interface
 
@@ -42,6 +42,10 @@ Available helpers:
 - `ns.UI.ScrollArea(parent, top, bottom)` -> scrollFrame, contentFrame. Full width, reserves scrollbar. Set content height after rendering. Bottom is positive inset.
 - `ns.UI.Tooltip(widget, textOrFunction)`.
 - `ns.UI.MakeCopyBox(title, text)` opens a movable text selection panel for copying; transient edits are not saved. No clipboard API.
+- `ns.UI.Slider(parent,label,x,y,width,low,high,step,onChanged)` returns a 48-unit control with `.slider`, `.label`, `.valueText`, `SetDisplayValue(value,mixed)` and `SetEnabled(bool)`. Appearance uses percentage units; synchronization never invokes the writer.
+- `ns.IsCustomizablePanel(id)` excludes configuration/copy dialogs; `ns.SetPanelAppearance(idOrAll,key,value)` validates `scale`, `opacity`, `contentOpacity`, `hideHeader` and guards combat.
+- `ns.OpenAppearance(id)`, `ns.SetPriestBarsOnly(bool)` and `ns.ApplyCompactLayout()` provide public UI actions.
+- Panel roots stay at alpha 1. Background/chrome are styled individually; body alpha controls content. Zero content hides the body and clears focus. Editing may add `pcHeaderExtra` to frame height; SavePlacement excludes it and the live frame is centered before changing this height.
 
 Self-contained module model logic should be exported under `ns.Models.<Name>` for deterministic tests. Keep module creation and refresh functions idempotent. Event handlers may receive secret values; never stringify raw events/errors or persist them. Register only relevant events. No per-frame polling. Current live local state must be presented as unavailable if API missing or restricted.
 

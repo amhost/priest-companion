@@ -149,15 +149,52 @@ function Methods:GetVerticalScroll() return self.verticalScroll or 0 end
 function Methods:GetVerticalScrollRange() return math.max(0,(self.scrollChild and self.scrollChild:GetHeight() or 0)-self:GetHeight()) end
 function Methods:SetMinMaxValues(low,high) self.minValue,self.maxValue=low,high end
 function Methods:GetMinMaxValues() return self.minValue,self.maxValue end
-function Methods:SetValue(v) self.value=v end
+local function setSliderValue(self,value,userInput)
+    assert(type(value)=="number" and value==value,"Slider values must be readable numbers")
+    if userInput and self.obeyStepOnDrag and self.valueStep and self.valueStep>0 then
+        local low=self.minValue or 0
+        value=low+math.floor((value-low)/self.valueStep+0.5)*self.valueStep
+    end
+    if self.minValue then value=math.max(self.minValue,value) end
+    if self.maxValue then value=math.min(self.maxValue,value) end
+    local changed=self.value~=value
+    self.value=value
+    if changed then trigger(self,"OnValueChanged",value,userInput==true) end
+end
+function Methods:SetValue(v)
+    if self.kind=="Slider" then setSliderValue(self,v,false)
+    else self.value=v end -- StatusBar setters also accept display-only secret values.
+end
 function Methods:GetValue() return self.value end
+function Methods:SetValueStep(value) self.valueStep=value end
+function Methods:GetValueStep() return self.valueStep end
+function Methods:SetObeyStepOnDrag(value) self.obeyStepOnDrag=value==true end
+function Methods:SetOrientation(value) self.orientation=value end
+function Methods:SetThumbTexture(value)
+    if type(value)=="table" then self.thumbTexture=value
+    else
+        self.thumbTexture=self.thumbTexture or object("Texture",nil,self)
+        self.thumbTexture.texture=value
+    end
+end
+function Methods:GetThumbTexture() return self.thumbTexture end
 function Methods:SetStatusBarTexture(v) self.statusTexture=v end
 function Methods:GetStatusBarTexture() self.barTexture=self.barTexture or object("Texture",nil,self);return self.barTexture end
 function Methods:SetStatusBarColor(...) self.statusColor={...} end
 function Methods:SetBackdropColor(...) self.background={...} end
 function Methods:SetBackdropBorderColor(...) self.border={...} end
+function Methods:SetColorTexture(...) self.color={...} end
+function Methods:SetVertexColor(...) self.vertexColor={...} end
+function Methods:SetTexture(value) self.texture=value end
 function Methods:SetAlpha(v) self.alpha=v end
 function Methods:GetAlpha() return self.alpha end
+function Methods:EnableMouse(value) self.mouseEnabled=value==true end
+function Methods:IsMouseEnabled() return self.mouseEnabled==true end
+function Methods:SetClipsChildren(value) self.clipsChildren=value==true end
+function Methods:SetResizeBounds(minWidth,minHeight,maxWidth,maxHeight)
+    self.resizeBounds={minWidth,minHeight,maxWidth,maxHeight}
+end
+function Methods:SetMinResize(minWidth,minHeight) self.resizeBounds={minWidth,minHeight} end
 function Methods:SetOwner(parent,anchor) self.owner,self.ownerAnchor=parent,anchor end
 function Methods:GetOwner() return self.owner end
 function Methods:IsForbidden() return false end
@@ -288,6 +325,12 @@ function Mock.Fire(event,...)
         if frame.events and frame.events[event] then trigger(frame,"OnEvent",event,...) end
     end
     Mock.Flush()
+end
+function Mock.DragSlider(slider,value)
+    assert(slider.kind=="Slider","DragSlider requires a Slider")
+    if not slider:IsEnabled() or slider.mouseEnabled==false then return false end
+    setSliderValue(slider,value,true)
+    return true
 end
 Mock.Trigger=trigger
 return Mock
