@@ -1,16 +1,20 @@
 # Quest Companion
 
-Questie navigation and movable utility panels for every class in World of Warcraft: Forever.
+Questie navigation, a Deathknell leveling guide, and movable utility panels for every class in World of Warcraft: Forever.
 
-**Version: 0.2.0-alpha.1.** Targets interface **16001**. Offline Lua and mocked API checks pass. The new Questie integration and repackage have **not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
+**Version: 0.2.0-alpha.2.** Targets interface **16001**. Adds support for the reported **Questie 12.6.5 / DB 1.0.14** setup, alongside the guarded 12.8/12.9 family. The previous alpha rejected 12.6.5. The new release passes offline Lua and mocked API checks; **alpha.2 has not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
 
 Questie supplies the optional checkpoint navigation. The remaining panels can load without it. No addon manager or external service is required. Original source is included and free under the MIT license.
 
-[Download releases](https://github.com/amhost/priest-companion/releases) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
+[Download alpha.2](https://github.com/amhost/priest-companion/releases/tag/v0.2.0-alpha.2) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
+
+**Start without chat commands:** left-click the new map icon beside the minimap, then choose **Guide**, **Quest Helper**, or **Settings**. Right-click the icon to toggle the guide. Drag it around the minimap to reposition it. The menu's **Quest locations > Next / All / Hide** controls apply when you next click a tracked Questie quest title. **Normal Questie clicks** restores the original handling.
+
+**Guide markers:** open **Guide**, then choose **Current** for the displayed action or **Route** for multiple numbered locations. **Hide** clears this guide's markers. The checklist has **Back / Done / Skip / Undo / Resume** controls and a clickable **All steps** view. See [Leveling guide](docs/LEVELING-GUIDE.md).
 
 **Quick compact setup:** enter `/qc compact`. This shows the layout's quest or preparation panel, sets 80% scale, removes backgrounds, and leaves content at 85%. Resources stay optional and retain their previous visibility. `/qc restorelayout` undoes it. Existing arrangements are preserved until you choose the preset.
 
-**Fine tune a panel:** enter `/qc appearance resources`, or use a panel's **Appearance** button in `/qc`. Background and content opacity each run from 0% to 100%; scale runs from 50% to 150%. See [UI controls](docs/UI-CONTROLS.md) and the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md).
+**Fine tune a panel:** choose **minimap map icon > Settings > Appearance**, or use a panel's **Appearance** button in the manager. Background and content opacity each run from 0% to 100%; scale runs from 50% to 150%. The purple treatment is replaced by game font paths, gold/white tracker text and stock controls. Fresh gameplay panels have transparent backgrounds; existing saved opacity stays unchanged. See [UI controls](docs/UI-CONTROLS.md) and the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md).
 
 ## Features
 
@@ -18,6 +22,8 @@ Questie supplies the optional checkpoint navigation. The remaining panels can lo
 | --- | --- |
 | Movable panels | Unlock, drag the title, resize from the bottom-right corner, and lock again. Position, size, scale, opacity and visibility are saved per layout. Movement and layout changes wait for combat to end. |
 | Resources | Optional compact health and current-resource bars. Mana, rage, energy and other resource types follow the character. No chosen-spell editor or rotation manager. Restricted values are used only in supported display setters. |
+| Deathknell guide | The supplied 15-part level 1-6 route becomes 33 checklist actions. Readable quest acceptance, whole-quest readiness and completed history can advance their corresponding actions. Travel, training and individual interactions use Done. Priest and Warlock starter scrolls are distinct. |
+| Multiple guide locations | Current / Route / Hide controls create up to 24 numbered world-map and minimap locations. Shared positions use one marker with an action list. Missing locations are reported. Your personal waypoint and other addons' markers remain separate. |
 | Quest Helper | One click on a quest row or supported Questie tracker title opens its checkpoint map. Hide / Next / All controls use the clicked quest's existing Questie pins. Optional NPC quest auto-accept, with Shift bypass, defaults off. |
 | Healing and Leveling layouts | Two independent arrangements. Switching layouts changes this addon's panels, not talents or gameplay bindings. |
 | Dungeon preparation | Editable manual checklist, minimum equipment durability, broken-item count, and general bag-space summary. Combat shows the last out-of-combat snapshot. |
@@ -34,13 +40,13 @@ Questie supplies the optional checkpoint navigation. The remaining panels can lo
 4. Extract the release ZIP. Copy its **PriestCompanion** folder into `AddOns`.
 5. The file directly below the copied folder must be `PriestCompanion\PriestCompanion.toc`. Avoid an extra ZIP-name folder between `AddOns` and `PriestCompanion`.
 6. Start Forever. On the character-selection screen, open **AddOns** and enable **Quest Companion** for the character.
-7. Enter the world and type `/qc` in chat. The manager opens automatically the first time.
+7. Enter the world and left-click the map icon beside the minimap. Choose **Guide** or **Settings**. The manager opens automatically on a fresh profile. If the icon is unavailable, `/qc` opens the manager and `/qc guide` opens the guide.
 
 If updating, exit the game and move the old `PriestCompanion` folder to a backup location outside `AddOns`, then copy the new folder into `AddOns`. The internal `PriestCompanion` folder and `PriestCompanionDB` save name intentionally remain unchanged for this upgrade; do not rename the folder or install a second copy. Keep your `WTF` folder and saved settings. This avoids stale addon files while retaining a recoverable code backup.
 
 ## Arrange the panels
 
-Type `/qc unlock`, drag each panel by its title, and resize with the bottom-right grip. Type `/qc lock` when finished. Hidden titles and zero-opacity panels temporarily reveal editing handles when unlocked. The manager's **Appearance** buttons open the sliders for each panel.
+Choose **minimap map icon > Unlock panels**, drag each panel by its title, and resize with the bottom-right grip. Choose **Lock panels** when finished. Hidden titles and zero-opacity panels temporarily reveal editing handles when unlocked. The manager's **Appearance** buttons open the sliders for each panel.
 
 Choose **Healing** or **Leveling** in the manager to arrange that layout separately. A new Healing layout shows Dungeon preparation and Keybind references. A new Leveling layout shows Quest Helper, Professions & Shopping and Kill Tracker. Resources are optional. Existing Priest-panel placement is copied to Resources on upgrade, including its visibility, scale and opacity; the removed editor no longer reserves its old height. Every feature panel can be enabled in either layout.
 
@@ -51,6 +57,8 @@ Choose **Compact layout** to show Quest Helper in Leveling, or Dungeon preparati
 | Command | Action |
 | --- | --- |
 | `/qc` or `/questcompanion` | Open or close the manager; `/pc` and `/priestcompanion` remain aliases |
+| `/qc menu` | Open the compact navigation menu |
+| `/qc guide` | Open the Deathknell guide |
 | `/qc unlock` | Enable dragging and resizing outside combat |
 | `/qc lock` | Stop movement and save placement |
 | `/qc compact` | Apply the compact preset to the current layout, retaining an undo copy |
@@ -85,11 +93,21 @@ Panel-manager, lock and layout-switch actions are also declared for WoW's keybin
 
 Enter `/qc show resources` for two compact bars: health and the character's current resource. There is no separate bars-only switch because the chosen-spell editor has been removed. Mouseover macro references remain in the separate References panel. No rotation guidance was added.
 
+On a Priest, these are health and mana. This panel is not the profession-materials or shopping list; those remain under **Settings > Professions & Shopping**.
+
+### Deathknell leveling guide
+
+Right-click the minimap map icon, or left-click it and choose **Guide**. Use **Done** after leaving the crypt. Accepting a listed quest can advance its acceptance action; a turn-in action requires readable completed-quest history. A quest being ready to turn in does not count as turned in. **Done** and **Skip** are explicit checklist marks and never claim that the game confirmed completion. **Undo** restores the latest manual change. **Back** reviews the previous action, and **Resume** returns to the earliest unfinished action.
+
+Choose **Current** or **Route** to open mapped locations, or click a row in **All steps** to review and map it. Route markers are ordered checklist hints, not a computed walking path. They use the supplied Tirisfal coordinates where present and the loaded Questie database for other pickup, turn-in and objective locations. Unknown or unreadable locations stay unmapped. **Hide** and closing the guide clear its own markers; closing only the world map leaves guide minimap markers available.
+
+This is a bundled route draft, not a freeform text-import interface. The full original route has not been verified against current Forever quest offers. Quest 8 is retained from the supplied checklist with an explicit verification note. The Priest branch uses **Hallowed Scroll (3097)**; **Tainted Scroll (3099)** belongs to the Warlock branch. Travel, training, looting Samuel Fipps's skull and burying it use manual confirmation. See [guide controls and limits](docs/LEVELING-GUIDE.md) and [source record](docs/DEATHKNELL-SOURCES.md).
+
 ### Quest Helper
 
 Plain left-click a quest title in the Questie tracker on the right side of the screen, or click a row in Quest Helper. A supported quest opens its map in the saved location mode. The helper's rows no longer require a second Map-button click; only the selected row expands its objectives. Shift-click or right-click a helper row opens quest details.
 
-Use **Locations > Hide / Next / All** in `/qc show quests`, or the commands above:
+Use **minimap map icon > Quest locations > Hide / Next / All**, or the same controls in **Quest Helper**. Selecting a mode in the minimap menu changes the next quest-title click; it does not itself choose a quest or open the map. The optional commands above do the same:
 
 - **Hide:** temporarily suppress the selected quest's supported Questie locations while its focused map view is open.
 - **Next:** show one nearest supported unfinished checkpoint, with a minimap twin for the same point. When the quest is ready, use its finisher. Nearest is coordinate distance, not a walking route or prerequisite order.
@@ -139,7 +157,7 @@ The diagnostic report omits character names, quest data, lists, target history a
 
 Read [validation](docs/VALIDATION.md) for the executed checks and use the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md) for the next game session. Offline tests establish behavior only in their Lua 5.4/mock scope. They do not establish WoW's native Lua compatibility, secure execution or runtime behavior.
 
-The `16001` target is grounded in the inspected [Questie 12.9.0 Forever manifest](https://github.com/Questie/Questie/blob/624cb783bfc1d272aeccd3dfa353dde8452e276f/Questie_Forever.toc), not an observation of the user's installed client. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
+The user's alpha.1 diagnostic reports **client 1.60.1 / 70938, interface 16001, enUS**, with zero module errors and Questie 12.6.5 rejected by the old adapter. That confirms the prior build's reported load state, not alpha.2 compatibility. The inspected [Questie 12.6.5 Forever manifest](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Questie_Forever.toc) also targets `16001`. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
 
 ## Missing dungeon quests: current recommendation
 

@@ -257,7 +257,9 @@ local function openMap(self)
     if not quest then ns.Notify("Select a logged quest first."); return end
     local bridge = ns.QuestieBridge
     if bridge and bridge.IsEnabled and bridge.IsEnabled() then
-        if bridge.Navigate(quest.id) then return true end
+        local ok, reason = bridge.Navigate(quest.id)
+        if ok then return true end
+        if reason then ns.Notify(reason) end
     end
     -- Unsupported or unavailable Questie locations keep the ordinary details
     -- path. Do not overwrite the player's personal waypoint or invent a pin.
@@ -267,14 +269,19 @@ end
 
 local function setLocationMode(mode)
     local bridge = ns.QuestieBridge
-    if not bridge then return false end
-    if ns.IsCombat() then ns.Notify("Change quest locations after combat."); return false end
-    if mode == "off" then return bridge.SetEnabled(false) end
-    if mode == "on" then return bridge.SetEnabled(true) end
-    if mode ~= "hide" and mode ~= "next" and mode ~= "all" then return false end
-    if bridge.SetMode(mode) == false then return false end
-    return bridge.SetEnabled(true)
+    if not bridge then return false, "Questie integration is unavailable." end
+    if ns.IsCombat() then return false, "Change quest locations after combat." end
+    local ok, reason
+    if mode == "off" then ok, reason = bridge.SetEnabled(false)
+    elseif mode == "on" then ok, reason = bridge.SetEnabled(true)
+    elseif mode == "hide" or mode == "next" or mode == "all" then
+        ok, reason = bridge.SetMode(mode)
+        if ok ~= false then ok, reason = bridge.SetEnabled(true) end
+    else return false, "Choose Hide, Next, All or normal Questie." end
+    ns.Refresh("quests"); ns.Refresh("quick")
+    return ok, reason
 end
+Model.SetLocationMode = setLocationMode
 
 local function updateWidths(self)
     if not self.scroll then return end
@@ -305,8 +312,10 @@ function Module:Create()
     self.locationButtons = {}
     for index, mode in ipairs({"hide", "next", "all"}) do
         local value = mode
-        self.locationButtons[mode] = ns.UI.Button(self.body, mode, 78 + (index-1)*68, 28, 62, 24, function()
-            setLocationMode(value)
+        self.locationButtons[mode] = ns.UI.TrackerAction(self.body, mode, 78 + (index-1)*68, 28, 62, 24, function()
+            local ok, reason = setLocationMode(value)
+            if not ok and reason then ns.Notify(reason)
+            elseif selectedQuest(self) then openMap(self) end
             ns.Refresh("quests")
         end)
     end
@@ -314,9 +323,11 @@ function Module:Create()
     ns.UI.Tooltip(self.locationButtons.next, "Show one nearest supported unfinished checkpoint for the quest you click, or a finisher when ready to turn in. This is a map location, not a calculated walking route.")
     ns.UI.Tooltip(self.locationButtons.all, "Show all supported unfinished Questie map locations for the quest you click. Questie's existing clustering and visibility settings still apply.")
     self.trackerClicks = ns.UI.Check(self.body, "Questie title clicks", 6, 60, function(checked)
-        if ns.QuestieBridge then ns.QuestieBridge.SetEnabled(checked == true) end
+        local ok, reason = setLocationMode(checked and "on" or "off")
+        if not ok and reason then ns.Notify(reason) end
         ns.Refresh("quests")
     end)
+    self.integrationNote = ns.UI.Text(self.body, "", 8, 85, 11, 340, {1,0.65,0.35})
     ns.UI.Tooltip(self.trackerClicks, function()
         local status = ns.QuestieBridge and ns.QuestieBridge.Status() or "Questie integration unavailable"
         return "Plain left-click a supported Questie tracker title to open its current map location. Other clicks retain Questie's behavior.\n" .. status
@@ -359,6 +370,12 @@ function Module:Refresh()
     local bridge = ns.QuestieBridge
     local active = bridge and bridge.IsEnabled()
     local selectedMode = bridge and bridge.GetMode() or "next"
+    local ready, unavailable = true, nil
+    if bridge and bridge.GetAvailability then ready, unavailable = bridge.GetAvailability() end
+    local integrationNote = active and not ready and ns.Text(unavailable, "Questie navigation is unavailable.") or ""
+    self.integrationNote:SetText(integrationNote)
+    self.integrationNote:SetShown(integrationNote ~= "")
+    self.integrationNote:SetWidth(math.max(200, self.body:GetWidth()-16))
     self.locationLabel:ClearAllPoints()
     self.locationLabel:SetPoint("TOPLEFT", self.body, "TOPLEFT", 8, -(modeY + 6))
     for index, mode in ipairs({"hide", "next", "all"}) do
@@ -374,6 +391,9 @@ function Module:Refresh()
     self.trackerClicks:SetChecked(active == true)
     self.trackerClicks:SetEnabled(not ns.IsCombat() and bridge ~= nil)
     local checkY = modeY + 32 + math.max(24, ns.Number(self.trackerClicks.label:GetStringHeight(), 15) + 8)
+    self.integrationNote:ClearAllPoints()
+    self.integrationNote:SetPoint("TOPLEFT", self.body, "TOPLEFT", 8, -checkY)
+    if integrationNote ~= "" then checkY = checkY + self.integrationNote:GetStringHeight() + 6 end
     self.autoAccept:ClearAllPoints()
     self.autoAccept:SetPoint("TOPLEFT", self.body, "TOPLEFT", 6, -checkY)
     local noteY = checkY + math.max(24, ns.Number(self.autoAccept.label:GetStringHeight(), 15) + 8)
@@ -389,7 +409,7 @@ function Module:Refresh()
         local row = self.rows[index]
         if not row then
             row = {}
-            row.button = ns.UI.Button(self.content, "", 6, 0, width - 12, 26, function(_, button)
+            row.button = ns.UI.TrackerAction(self.content, "", 6, 0, width - 12, 26, function(_, button)
                 if row.questID then
                     settings().selectedQuestID = row.questID
                     ns.Refresh("quests")
@@ -440,7 +460,8 @@ ns.RegisterCommand("locations", function(rest)
     elseif not ns.QuestieBridge then
         ns.Notify("Questie integration is unavailable.")
     else
-        setLocationMode(mode)
+        local ok, reason = setLocationMode(mode)
+        if not ok and reason then ns.Notify(reason) end
         ns.Refresh("quests")
     end
 end)

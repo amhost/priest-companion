@@ -1,53 +1,116 @@
 local addonName, ns = ...
 local UI = ns.UI
 UI.fonts = {}
-UI.accent = {0.72, 0.64, 0.94}
+UI.accent = {1, 0.82, 0}
+UI.textColor = {1, 1, 1}
 
 local function styleFrame(frame)
-    frame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8", edgeFile="Interface\\Buttons\\WHITE8x8", edgeSize=1})
-    frame:SetBackdropColor(0.055, 0.06, 0.085, 0.94)
-    frame:SetBackdropBorderColor(0.28, 0.27, 0.37, 1)
+    -- These are the client's own tooltip assets, also used by Questie's tracker.
+    -- No textures or fonts are bundled or replaced globally.
+    frame:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile="Interface\\Tooltips\\UI-Tooltip-Border", tile=true, tileSize=16, edgeSize=16,
+        insets={left=4, right=4, top=4, bottom=4}})
+    frame:SetBackdropColor(0, 0, 0, 0.94)
+    frame:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.94)
+end
+
+local function setLabelFont(label, size, fontObject)
+    if fontObject then ns.Call(label.SetFontObject, label, fontObject) end
+    local path, _, flags
+    if fontObject and ns.Readable(fontObject) then
+        path, _, flags = ns.Call(fontObject.GetFont, fontObject)
+    end
+    label.pcBaseSize = ns.Number(size, 12)
+    label.pcFontPath = ns.Text(path, STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF")
+    label.pcFontFlags = ns.Text(flags, "")
+    label:SetFont(label.pcFontPath, label.pcBaseSize + (UI.fontDelta or 0), label.pcFontFlags)
+    ns.Call(label.SetShadowColor, label, 0, 0, 0, 1)
+    ns.Call(label.SetShadowOffset, label, 1, -1)
+    UI.fonts[#UI.fonts + 1] = label
 end
 
 function UI.Text(parent, text, x, y, size, width, color)
-    local label = parent:CreateFontString(nil, "OVERLAY")
-    local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-    label.pcBaseSize = size or 12
-    label:SetFont(font, label.pcBaseSize + (UI.fontDelta or 0), "")
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    setLabelFont(label, size, color == UI.accent and GameFontNormal or GameFontHighlight)
     label:SetPoint("TOPLEFT", parent, "TOPLEFT", x or 0, -(y or 0))
     if width then label:SetWidth(width) end
     label:SetJustifyH("LEFT")
     label:SetJustifyV("TOP")
     label:SetWordWrap(true)
-    local c = color or {0.9, 0.91, 0.95}
+    local c = color or UI.textColor
     label:SetTextColor(c[1], c[2], c[3])
     label:SetText(ns.Text(text, ""))
-    UI.fonts[#UI.fonts + 1] = label
     return label
 end
 
 function UI.SetFontDelta(delta)
     UI.fontDelta = ns.Clamp(delta, -1, 4, 0)
-    local font = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-    for _, label in ipairs(UI.fonts) do label:SetFont(font, label.pcBaseSize + UI.fontDelta, "") end
+    for _, label in ipairs(UI.fonts) do
+        label:SetFont(label.pcFontPath, label.pcBaseSize + UI.fontDelta, label.pcFontFlags)
+    end
     ns.RefreshAll()
 end
 
 function UI.Button(parent, text, x, y, width, height, onClick)
-    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     button:SetPoint("TOPLEFT", parent, "TOPLEFT", x or 0, -(y or 0))
     button:SetSize(width or 90, height or 24)
-    styleFrame(button)
-    button:SetBackdropColor(0.12, 0.12, 0.18, 1)
-    local label = UI.Text(button, text, 5, 5, 11, (width or 90) - 10)
+    button:SetText(ns.Text(text, ""))
+    local label = button:GetFontString()
+    if label then
+        setLabelFont(label, 11, GameFontNormal)
+    else
+        -- The bounded test double and a stripped client may lack template text.
+        label = UI.Text(button, text, 5, 5, 11, (width or 90) - 10, UI.accent)
+    end
     label:ClearAllPoints()
     label:SetPoint("CENTER")
+    label:SetWidth((width or 90) - 10)
     label:SetJustifyH("CENTER")
     button.label = label
     button.SetText = function(_, value) label:SetText(value) end
     button.GetText = function() return label:GetText() end
-    button:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(unpack(UI.accent)) end)
-    button:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(0.28, 0.27, 0.37, 1) end)
+    button.SetSelected = function(self, selected)
+        self.pcSelected = selected == true
+        if self.pcSelected then ns.Call(self.LockHighlight, self)
+        else ns.Call(self.UnlockHighlight, self) end
+    end
+    if onClick then button:SetScript("OnClick", onClick) end
+    return button
+end
+
+-- Text actions fit alongside tracked objectives without a row of boxed buttons.
+-- The same argument order as UI.Button lets feature panels choose either style.
+function UI.TrackerAction(parent, text, x, y, width, height, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", x or 0, -(y or 0))
+    button:SetSize(width or 90, height or 24)
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    local label = UI.Text(button, text, 0, 0, 12, width or 90, UI.accent)
+    label:ClearAllPoints()
+    label:SetPoint("LEFT", button, "LEFT", 2, 0)
+    label:SetWordWrap(false)
+    ns.Call(label.SetMaxLines, label, 1)
+    button.label = label
+    button.SetText = function(_, value) label:SetText(ns.Text(value, "")) end
+    button.GetText = function() return label:GetText() end
+    local function updateColor(self)
+        local enabled = ns.Call(self.IsEnabled, self)
+        if enabled == false then label:SetTextColor(0.5, 0.5, 0.5)
+        elseif self.pcSelected or self.pcHover then label:SetTextColor(1, 1, 1)
+        else label:SetTextColor(UI.accent[1], UI.accent[2], UI.accent[3]) end
+    end
+    button.SetSelected = function(self, selected)
+        self.pcSelected = selected == true
+        updateColor(self)
+    end
+    button:SetScript("OnEnter", function(self) self.pcHover=true; updateColor(self) end)
+    button:SetScript("OnLeave", function(self) self.pcHover=nil; updateColor(self) end)
+    button:SetScript("OnEnable", updateColor)
+    button:SetScript("OnDisable", updateColor)
+    button:HookScript("OnSizeChanged", function(_, newWidth)
+        label:SetWidth(math.max(1, newWidth - 4))
+    end)
     if onClick then button:SetScript("OnClick", onClick) end
     return button
 end
@@ -101,7 +164,7 @@ function UI.Slider(parent, label, x, y, width, low, high, step, onChanged)
     local track = slider:CreateTexture(nil, "BACKGROUND")
     track:SetPoint("LEFT", 0, 0); track:SetPoint("RIGHT", 0, 0)
     track:SetHeight(4)
-    track:SetColorTexture(0.29, 0.28, 0.38, 1)
+    track:SetColorTexture(0.3, 0.3, 0.3, 1)
     slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local thumb = slider:GetThumbTexture()
     thumb:SetSize(10, 18)
@@ -204,9 +267,9 @@ function UI.CreatePanel(module)
     header:RegisterForDrag("LeftButton")
     local headerBG = header:CreateTexture(nil, "BACKGROUND")
     headerBG:SetAllPoints()
-    headerBG:SetColorTexture(0.12, 0.105, 0.18, 1)
+    headerBG:SetColorTexture(0, 0, 0, 0)
     frame.title = UI.Text(header, module.title, 8, 4, 12, (module.width or 320) - 100, UI.accent)
-    frame.moveLabel = UI.Text(header, "", 0, 4, 10, 55, {0.72,0.74,0.8})
+    frame.moveLabel = UI.Text(header, "", 0, 4, 10, 55, {0.7,0.7,0.7})
     frame.moveLabel:ClearAllPoints()
     frame.moveLabel:SetPoint("TOPRIGHT", -6, -4)
     frame.moveLabel:SetJustifyH("RIGHT")
@@ -217,9 +280,11 @@ function UI.CreatePanel(module)
     header:SetScript("OnMouseDown", function() frame:Raise() end)
     UI.Tooltip(header, "Drag this title when panels are unlocked. Use /qc unlock or the panel manager.")
 
-    local close = UI.Button(frame, "x", 0, 0, 18, 18, function() ns.SetPanelVisible(module.id, false) end)
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetSize(24, 24)
+    close:SetScript("OnClick", function() ns.SetPanelVisible(module.id, false) end)
     close:ClearAllPoints()
-    close:SetPoint("TOPRIGHT", -3, -3)
+    close:SetPoint("TOPRIGHT", -1, -1)
     close:SetFrameLevel(header:GetFrameLevel() + 1)
     UI.Tooltip(close, "Hide this panel in the current layout. Restore it from /qc.")
 
@@ -231,7 +296,7 @@ function UI.CreatePanel(module)
     local grip = CreateFrame("Button", nil, frame)
     grip:SetPoint("BOTTOMRIGHT", -1, 1)
     grip:SetSize(18, 18)
-    local gripText = UI.Text(grip, "/", 3, 0, 16, 14, {0.65,0.62,0.78})
+    UI.Text(grip, "/", 3, 0, 16, 14, UI.accent)
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnDragStart", function()
         if ns.db and not ns.db.locked and not ns.IsCombat() then frame:StartSizing("BOTTOMRIGHT") end
@@ -252,14 +317,15 @@ function UI.CreatePanel(module)
             background, content = math.max(background, 0.18), math.max(content, 0.35)
         end
         self:SetAlpha(1)
-        self:SetBackdropColor(0.055, 0.06, 0.085, background)
-        self:SetBackdropBorderColor(0.28, 0.27, 0.37, background)
-        headerBG:SetColorTexture(unlocked and 0.18 or 0.12, 0.105, unlocked and 0.25 or 0.18, background)
+        self:SetBackdropColor(0, 0, 0, background)
+        -- Locked gameplay panels have objective-tracker chrome: no frame edge
+        -- or colored title bar. Saved background opacity remains literal.
+        local border = configurable and not unlocked and 0 or background
+        self:SetBackdropBorderColor(0.6, 0.6, 0.6, border)
+        headerBG:SetColorTexture(0, 0, 0, configurable and not unlocked and 0 or background)
         local hideHeader = configurable and settings.hideHeader
         header:SetShown(not hideHeader or unlocked)
         close:SetShown(not hideHeader or unlocked)
-        close:SetBackdropColor(0.12, 0.12, 0.18, background)
-        close:SetBackdropBorderColor(0.28, 0.27, 0.37, background)
         self.body:SetAlpha(content)
         if content == 0 and self.body:IsShown() then UI.ClearFocusWithin(self.body) end
         self.body:SetShown(content > 0)
@@ -296,8 +362,6 @@ function UI.CreatePanel(module)
         self.moveLabel:SetText(unlocked and "drag" or "")
     end
     frame.UpdateLock = frame.UpdateAppearance
-    close:HookScript("OnEnter", function() frame:UpdateAppearance() end)
-    close:HookScript("OnLeave", function() frame:UpdateAppearance() end)
     frame:SetScript("OnSizeChanged", function(self, width)
         self.title:SetWidth(math.max(100, width - 110))
         if ns.ready and not ns.applying then ns.Refresh(module.id) end

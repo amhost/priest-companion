@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: Quest Companion
-## Notes: Quest navigation and configurable preparation, reference, goals and tracking panels for every class.
+## Notes: Quest navigation, a Deathknell leveling guide, and configurable utility panels for every class.
 ## Author: Quest Companion contributors
-## Version: 0.2.0-alpha.1
+## Version: 0.2.0-alpha.2
 ## SavedVariablesPerCharacter: PriestCompanionDB
 ## OptionalDeps: Questie, QuestieDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
@@ -11,12 +11,17 @@ Core.lua
 UI.lua
 Spells.lua
 QuestieBridge.lua
+GuideData.lua
+GuideModel.lua
+GuideWaypoints.lua
 Modules\Resources.lua
 Modules\Quests.lua
+Modules\Guide.lua
 Modules\Preparation.lua
 Modules\References.lua
 Modules\Goals.lua
 Modules\Kills.lua
 Modules\Appearance.lua
 Modules\Settings.lua
+Modules\QuickMenu.lua
 Bindings.xml

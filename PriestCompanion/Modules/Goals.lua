@@ -301,13 +301,14 @@ local function setEnabled(widget, enabled)
 end
 
 local function setFilterHighlight(widget, active)
+    if widget.SetSelected then widget:SetSelected(active); return end
     if active and widget.LockHighlight then widget:LockHighlight() end
     if not active and widget.UnlockHighlight then widget:UnlockHighlight() end
     if widget.SetBackdropColor then
         if active then
-            widget:SetBackdropColor(0.22, 0.19, 0.33, 1)
+            widget:SetBackdropColor(0.25, 0.20, 0.08, 1)
         else
-            widget:SetBackdropColor(0.12, 0.12, 0.18, 1)
+            widget:SetBackdropColor(0.08, 0.08, 0.08, 1)
         end
     end
 end
