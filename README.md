@@ -2,11 +2,11 @@
 
 Questie navigation, a Deathknell leveling guide, and movable utility panels for every class in World of Warcraft: Forever.
 
-**Version: 0.2.0-alpha.2.** Targets interface **16001**. Adds support for the reported **Questie 12.6.5 / DB 1.0.14** setup, alongside the guarded 12.8/12.9 family. The previous alpha rejected 12.6.5. The new release passes offline Lua and mocked API checks; **alpha.2 has not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
+**Version: 0.2.0-alpha.3.** Targets interface **16001**. This hotfix removes a Questie startup-timer hook implicated in the reported alpha.2 reload failure. Support remains for the reported **Questie 12.6.5 / DB 1.0.14** setup and the guarded 12.8/12.9 family. The new regression suite passes offline; **alpha.3 still requires a native reload check**. See [validation](docs/VALIDATION.md) for the user-reported failure and exact evidence limits.
 
 Questie supplies the optional checkpoint navigation. The remaining panels can load without it. No addon manager or external service is required. Original source is included and free under the MIT license.
 
-[Download alpha.2](https://github.com/amhost/priest-companion/releases/tag/v0.2.0-alpha.2) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
+[Download alpha.3](https://github.com/amhost/priest-companion/releases/tag/v0.2.0-alpha.3) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
 
 **Start without chat commands:** left-click the new map icon beside the minimap, then choose **Guide**, **Quest Helper**, or **Settings**. Right-click the icon to toggle the guide. Drag it around the minimap to reposition it. The menu's **Quest locations > Next / All / Hide** controls apply when you next click a tracked Questie quest title. **Normal Questie clicks** restores the original handling.
 
@@ -157,7 +157,7 @@ The diagnostic report omits character names, quest data, lists, target history a
 
 Read [validation](docs/VALIDATION.md) for the executed checks and use the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md) for the next game session. Offline tests establish behavior only in their Lua 5.4/mock scope. They do not establish WoW's native Lua compatibility, secure execution or runtime behavior.
 
-The user's alpha.1 diagnostic reports **client 1.60.1 / 70938, interface 16001, enUS**, with zero module errors and Questie 12.6.5 rejected by the old adapter. That confirms the prior build's reported load state, not alpha.2 compatibility. The inspected [Questie 12.6.5 Forever manifest](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Questie_Forever.toc) also targets `16001`. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
+The user's alpha.1 diagnostic reports **client 1.60.1 / 70938, interface 16001, enUS**, with zero module errors and Questie 12.6.5 rejected by the old adapter. That confirms the prior build's reported load state. A later alpha.2 screenshot showed the settings UI and a Questie startup error; the user reported Questie reloaded after disabling Quest Companion. Alpha.3 removes the conflicting timer hook, with native confirmation pending. The inspected [Questie 12.6.5 Forever manifest](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Questie_Forever.toc) also targets `16001`. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
 
 ## Missing dungeon quests: current recommendation
 

@@ -9,7 +9,7 @@ local addonName, ns = ...
 -- separate guide renderer uses its own pin reference through GetMapProvider.
 local Bridge = {}
 ns.QuestieBridge = Bridge
-local active, modules, installed, hooksAttempted, pendingRestore, refreshPending, drawDirty
+local active, modules, installed, hooksAttempted, pendingRestore, refreshPending
 local lastFailure, version, databaseVersion = nil, "unavailable", "unavailable"
 local iconRecords = setmetatable({}, {__mode = "k"})
 local titleRecords = setmetatable({}, {__mode = "k"})
@@ -149,7 +149,7 @@ end
 
 local function release()
     if blocked() then pendingRestore = true; return false end
-    active, pendingRestore, drawDirty = nil, nil, nil
+    active, pendingRestore = nil, nil
     restoreIcons()
     return true
 end
@@ -348,15 +348,18 @@ end
 
 local function scheduleRefresh()
     if not active or refreshPending then return end
+    if not hasMethods(C_Timer, {"After"}) then
+        release(); failure("Deferred map refresh is unavailable; normal navigation is retained.")
+        return
+    end
     refreshPending = true
-    if C_Timer and type(C_Timer.After) == "function" then
-        C_Timer.After(0, function()
-            refreshPending = nil
-            if active then refreshActive() end
-        end)
-    else
+    local ok = pcall(C_Timer.After, 0, function()
         refreshPending = nil
-        refreshActive()
+        if active then refreshActive() end
+    end)
+    if not ok then
+        refreshPending = nil
+        release(); failure("Deferred map refresh could not be scheduled; normal navigation is retained.")
     end
 end
 
@@ -426,7 +429,7 @@ function Bridge.Install()
         framePool = registry.QuestieFramePool, compat = registry.QuestieCompat, hbd = mapLibraries(profile, registry)}
     local shapes = {
         builder = {"AddTitle"}, pool = {"GetCurrentLine", "ForEachQuestTitleLine"},
-        eligibility = {"RefreshAndGetCapabilities"}, map = {"GetFramesForQuest", "QueueDraw", "ProcessQueue"},
+        eligibility = {"RefreshAndGetCapabilities"}, map = {"GetFramesForQuest", "QueueDraw"},
         framePool = {"UnloadFrame"}, compat = {"OpenWorldMap", "GetQuestUiMapID"},
         hbd = {"GetPlayerWorldPosition", "GetWorldCoordinatesFromZone"},
     }
@@ -437,6 +440,9 @@ function Bridge.Install()
     end
     if type(hooksecurefunc) ~= "function" or not hasMethods(WorldMapFrame, {"HookScript", "IsShown"}) then
         return failure("Map hooks are unavailable.")
+    end
+    if not hasMethods(C_Timer, {"After"}) then
+        return failure("Deferred map refresh is unavailable; normal navigation is retained.")
     end
     modules = found
     hooksAttempted = true
@@ -455,16 +461,14 @@ function Bridge.Install()
                 if not filterable(frame) then
                     release(); failure("Questie icon shape changed; normal navigation is retained."); return
                 end
-                drawDirty = true
                 -- New/recycled pins start suppressed until the complete set is selected.
                 if not applyIcon(frame) then
                     release(); failure("Another addon changed Questie icons; normal navigation is retained.")
+                    return
                 end
-            end
-        end)
-        hooksecurefunc(modules.map, "ProcessQueue", function()
-            if installed and active and drawDirty and not blocked() then
-                drawDirty = nil
+                -- Questie registers the queued frames before this stack returns.
+                -- Defer our refresh without touching ProcessQueue: Questie passes
+                -- that exact function to C_Timer.NewTicker during initialization.
                 scheduleRefresh()
             end
         end)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-alpha.3
+
+- Removed the hook on QuestieMap.ProcessQueue, preserving the exact callback Questie registers with C_Timer.NewTicker during initialization.
+- Moved selected-quest redraw refresh to a coalesced deferred callback scheduled by QueueDraw. Missing or throwing scheduling support restores owned filtering; no synchronous fallback inspects partially registered frames.
+- Added startup-order, captured-timer, enabled/disabled preference, partial-registration, redraw and scheduling-failure regressions. The prior build fails the new bounded timer contract; the fixed suite passes.
+- Recorded the user-reported alpha.2 settings rendering, reload failure and recovery after disabling Quest Companion. Native alpha.3 reload validation remains pending.
+
 ## 0.2.0-alpha.2
 
 - Added exact Questie 12.6.5 support through its LibStub map libraries, retaining version/shape guards for the 12.8/12.9 family. Provider failures now have visible reasons.

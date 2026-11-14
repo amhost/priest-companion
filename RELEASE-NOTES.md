@@ -1,52 +1,31 @@
-# Quest Companion 0.2.0-alpha.2
+# Quest Companion 0.2.0-alpha.3
 
-This update addresses the reported Questie 12.6.5 rejection, replaces the purple panel treatment, adds minimap controls, and turns the supplied Deathknell 1-6 checklist into a playable guide.
+This hotfix removes the Questie timer-callback hook implicated in the reported alpha.2 reload failure.
 
-## What changed
+## The failure and correction
 
-- **Questie 12.6.5 support:** the previous release rejected this version. The adapter now recognizes its older LibStub map-library registration, as well as the guarded 12.8/12.9 module interface. Missing or changed providers produce a visible reason. This is source-inspected and mock-tested support; native validation remains pending.
-- **Minimap controls:** left-click the map icon for Guide, Quest Helper, Settings, lock controls and Questie location modes. Right-click to toggle the guide. Drag the icon to reposition it. Chat commands remain optional.
-- **WoW-style presentation:** game font paths and shadows, gold/white tracker actions, stock button/dialog textures and transparent fresh gameplay panels replace the purple window treatment. Existing saved opacity is preserved. Background and content opacity remain independent 0-100% sliders, with 50-150% scale.
-- **Deathknell guide:** 33 actions represent the supplied 15 steps. Acceptance, whole-quest readiness and turn-ins follow readable quest state. Travel, training and individual interactions use Done. Back, Done, Skip, Undo, Resume and All steps are clickable controls. Manual marks never claim the game confirmed a quest completion.
-- **Class scroll correction:** Priests receive Hallowed Scroll (3097); Warlocks receive Tainted Scroll (3099). Other classes receive manual starter-quest reminders.
-- **Multiple locations:** Guide > Current maps the selected action. Guide > Route shows up to 24 numbered locations for remaining actions on the world map and minimap. Shared positions are grouped. Explicit supplied points use the loaded zone mapping; other actions use the loaded Questie quest/NPC/object/item data. Missing, partial and capped coverage is reported. These are route hints, not an automatically calculated walking path.
-- **Marker ownership:** Guide > Hide or closing the guide removes its own markers. Other Questie icons and the player's personal waypoint are preserved. Closing only the world map leaves guide minimap markers available. Guide modes are independent of Questie's Hide / Next / All modes.
+The user reported Questie failing during initialization with `C_Timer.NewTicker` bad argument #2 at `QuestieMap.lua:235`, then loading after Quest Companion was disabled. At that line, Questie passes `QuestieMap.ProcessQueue` directly as its repeating timer callback. Alpha.2 hooked that same field during early login.
 
-Resources still shows health and the current resource. For a Priest, that is health and mana. Profession materials and shopping goals remain in their own panel.
+Alpha.3 leaves Questie's timer callback untouched. Our adapter now schedules its own coalesced deferred refresh when Questie queues map icons. The deferral lets Questie finish registering those icons before selection is recalculated. Missing or failing scheduling support releases our temporary filtering and reports the failure.
 
-## First use without commands
+Delaying the old hook would not solve both startup orders: a timer created first retains the original callback and can bypass a later hook. The new tests explicitly cover both orders.
 
-| Action | Click path |
-| --- | --- |
-| Open the guide | Minimap map icon > Guide, or right-click the icon |
-| Mark leaving the crypt | Guide > Done |
-| Map the next pickup | Guide > Current or Map |
-| See multiple guide locations | Guide > Route |
-| Review and map a later action | Guide > All steps > click its row |
-| Navigate from Questie's tracker | Minimap map icon > Quest locations > Next or All; then plain left-click a tracked Questie quest title |
-| Restore original Questie clicks | Minimap map icon > Normal Questie clicks |
-| Move panels | Minimap map icon > Unlock panels; drag title or lower-right corner; Lock panels |
-| Change opacity or scale | Minimap map icon > Settings > Appearance |
+## Update and check
 
-Choosing Next / All / Hide in the minimap menu sets the next quest-title click behavior; selecting the mode alone does not open a quest map. The first crypt-exit guide action has no invented coordinate. Mark it Done after leaving the crypt to reach the first quest pickup.
+1. Download **QuestCompanion-0.2.0-alpha.3.zip**.
+2. Exit WoW normally. Move the old **PriestCompanion** folder outside the Forever client's `Interface\AddOns` directory as a backup, then copy the replacement **PriestCompanion** folder from the ZIP into `AddOns`. Keep the existing `WTF` directory and saved settings.
+3. At **character selection > AddOns**, enable **Quest Companion**, **Questie**, and **QuestieDB**. Log in and wait for Questie to finish loading.
+4. Press **Enter**, type `/reload`, press **Enter**, and wait for loading to finish. Repeat once. The previous `C_Timer.NewTicker` / `InitializeQueue` error should not return.
+5. Use **minimap map icon > Quest locations > Next**, then click a tracked Questie title. Check **All** and **Hide**, then **Guide > Route**. Open **Settings > Diagnostics** and confirm **0.2.0-alpha.3**.
 
-## Update
+If the same startup error returns, disable **Quest Companion** at **character selection > AddOns** and log in again. Preserve the error screenshot and diagnostic report if available. An in-addon navigation switch does not undo hooks already installed by an older build; use the full update and reload sequence above.
 
-1. Download **QuestCompanion-0.2.0-alpha.2.zip**, the installable asset.
-2. Exit WoW normally. In the same Forever client's `Interface\AddOns` directory used for alpha.1, move the existing `PriestCompanion` folder to a backup location outside `AddOns`.
-3. Extract the new archive and copy its **PriestCompanion** folder into `Interface\AddOns`. Keep the existing `WTF` directory and saved settings.
-4. At character selection, open **AddOns** and enable **Quest Companion**. Enter the world and use the minimap map icon.
+## Verification
 
-The installed folder, TOC filename and `PriestCompanionDB` save key remain unchanged for upgrade continuity. Do not rename the folder or install a second copy. The complete source, tests and build tools are in **QuestCompanion-0.2.0-alpha.2-source.zip**.
+**17 addon Lua files parsed and 2,389 assertions passed** in offline Lua 5.4 with bounded WoW mocks. The new startup fixture fails on unchanged alpha.2 and passes with this fix. It covers both timer-registration orders, saved enabled/disabled navigation, callback identity, actual captured-callback invocation, repeated resume events, Next/Hide/All redraws, partially registered frames and scheduler failures.
 
-## Validation and limits
+The test models the callback constraint reported by the native client. It does not emulate Blizzard's secure runtime. **The alpha.3 native reload check is still pending.** The supplied alpha.2 screenshot establishes that its settings panel rendered, while the error report and disable/reload result establish the reported interaction.
 
-**2,236 offline assertions passed**, with 17 addon Lua files parsed in Lua 5.4 and bounded WoW UI/API mocks. Coverage includes both Questie library shapes, real menu/guide callbacks, multi-marker ownership and cleanup, phase handling, item-source cycles, manual versus automatic progress, restricted values, persistence models and appearance recovery. Two review findings, wrapped rows retaining a one-line limit and Map after Hide retaining the wrong highlight, have regression coverage.
+The Deathknell guide, numbered route markers, native-style controls and saved preferences remain included. The complete source archive is **QuestCompanion-0.2.0-alpha.3-source.zip**.
 
-**Alpha.2 has not been tested in the actual WoW client.** The user's alpha.1 report identifies client 1.60.1 / 70938, interface 16001, enUS, Questie 12.6.5 / DB 1.0.14 and zero module errors. It also confirms the old version rejection; it does not validate this new code. Native rendering, secure execution, combat coexistence and cold-start saved-file loading remain pending.
-
-The Deathknell route is a draft derived from the supplied checklist. Its complete quest sequence and supplied coordinates have not been verified against current Forever gameplay. Quest 8 remains explicitly provisional. This release bundles the route as data; it does not provide arbitrary pasted-text guide import. The separate incomplete dungeon prototype is outside this package.
-
-Start with [the fresh-login checklist](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.2/docs/FRESH-LOGIN-CHECKLIST.md). See [guide controls](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.2/docs/LEVELING-GUIDE.md), [route sources](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.2/docs/DEATHKNELL-SOURCES.md), and [validation scope](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.2/docs/VALIDATION.md).
-
-Bug reports should include client and Questie versions, the selected guide action, exact clicks, expected/actual behavior, combat state and `/qc diagnostics`. The report omits character names, quest data, personal lists and raw errors. Source is MIT licensed, with no telemetry or external updater.
+See [the reload checklist](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.3/docs/FRESH-LOGIN-CHECKLIST.md), [integration details](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.3/docs/QUESTIE-INTEGRATION.md), and [validation record](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.3/docs/VALIDATION.md).

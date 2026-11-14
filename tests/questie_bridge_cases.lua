@@ -10,7 +10,7 @@ return function(T, common, Mock)
     local function fixture(version)
         local f = {events = {}, timers = {}, icons = {}, lines = {}, quests = {}, calls = 0, maps = {}, hooks = 0,
             combat = false, gamepad = false, modified = false, hiddenPreference = false, opened = true, serial = 0,
-            libraryLookups = {}}
+            libraryLookups = {}, tickers = {}, secureCallbacks = setmetatable({}, {__mode = "k"}), queueRuns = 0}
         local localNS = {db = {modules = {}}, Models = {}, Readable = common.Readable,
             Number = common.Number, Call = common.Call, IsCombat = function() return f.combat end}
         function localNS.ModuleDB(id, defaults)
@@ -35,13 +35,31 @@ return function(T, common, Mock)
                 for _, callback in ipairs(batch) do callback() end
             end
         end
+        function f:Tick()
+            -- A timer captures its callback at registration. Looking up
+            -- QuestieMap.ProcessQueue again here would mask late-hook failures.
+            for _, ticker in ipairs(self.tickers) do ticker.callback(ticker) end
+        end
         C_AddOns = {GetAddOnMetadata = function(name)
             if name == "Questie" then return version or "12.9.0" end
             if name == "QuestieDB" then return version == "12.6.5" and "1.0.14" or "1.1.1" end
         end}
         GetAddOnMetadata = nil
         InputUtil = {IsGamepadUIEnabled = function() return f.gamepad end}
-        C_Timer = {After = function(_, callback) table.insert(f.timers, callback) end}
+        C_Timer = {
+            After = function(_, callback) table.insert(f.timers, callback) end,
+            NewTicker = function(seconds, callback)
+                -- Bounded model of the reported native callback constraint, not
+                -- an emulation of secure functions or Blizzard's timer engine.
+                -- The old Lua-only hook mock accepted these wrappers silently.
+                if type(callback) ~= "function" or f.secureCallbacks[callback] then
+                    error("bad argument #2 to 'NewTicker' (bounded mock rejects securely hooked callbacks)")
+                end
+                local ticker = {seconds = seconds, callback = callback}
+                f.tickers[#f.tickers + 1] = ticker
+                return ticker
+            end,
+        }
         IsShiftKeyDown = function() return f.shift end
         IsControlKeyDown = function() return f.control end
         IsAltKeyDown = function() return f.alt end
@@ -56,6 +74,7 @@ return function(T, common, Mock)
                 callback(...)
                 return unpackValues(result)
             end
+            f.secureCallbacks[object[name]] = true
         end
         WorldMapFrame = {shown = false, hooks = {}}
         function WorldMapFrame:HookScript(name, callback)
@@ -152,14 +171,24 @@ return function(T, common, Mock)
         registry.QuestieMap = {
             GetFramesForQuest = function(_, id)
                 local result = {}
-                for _, icon in ipairs(f.icons) do if icon.data and icon.data.Id == id then result[icon.frameId] = icon end end
+                for _, icon in ipairs(f.icons) do
+                    if icon.registered ~= false and icon.data and icon.data.Id == id then result[icon.frameId] = icon end
+                end
                 return result
             end,
             QueueDraw = function() end,
             ProcessQueue = function()
+                f.queueRuns = f.queueRuns + 1
                 for _, icon in ipairs(f.icons) do if icon.data then icon._loaded = true; icon:Show() end end
             end,
         }
+        -- Questie 12.6.5 QuestieMap.lua:235 passes the function itself to its
+        -- ticker, and InitializeQueue can run after our PLAYER_LOGIN callback.
+        -- Only the draw ticker is modeled; fade coroutines are unrelated here.
+        registry.QuestieMap.InitializeQueue = function(self)
+            if not f.drawTicker then f.drawTicker = C_Timer.NewTicker(0.2, self.ProcessQueue) end
+            return f.drawTicker
+        end
         registry.QuestieFramePool = {UnloadFrame = function(_, icon)
             if icon.deferUnload then icon._needsUnload = true; return end
             icon.data, icon.hidden, icon._loaded, icon._needsUnload = nil, nil, nil, nil
@@ -226,6 +255,106 @@ return function(T, common, Mock)
     end
 
     local function run()
+        for _, supported in ipairs({"12.6.5", "12.8.0", "12.9.0"}) do
+            for _, enabled in ipairs({true, false}) do
+                for _, order in ipairs({"bridge-first", "ticker-first"}) do
+                    local f = populated(supported)
+                    f.ns.ModuleDB("navigation", {mode="next", enabled=enabled})
+                    local original = f.registry.QuestieMap.ProcessQueue
+                    if order == "ticker-first" then f.registry.QuestieMap:InitializeQueue() end
+                    f:Fire("PLAYER_LOGIN")
+                    local ok, ticker = pcall(f.registry.QuestieMap.InitializeQueue, f.registry.QuestieMap)
+                    T.ok(ok, "Questie draw ticker registers after login (" .. supported .. ", " .. order
+                        .. ", enabled=" .. tostring(enabled) .. "): " .. tostring(ticker))
+                    T.eq(ticker.callback, original, "Questie's timer captures its original callback")
+                    T.eq(f.registry.QuestieMap.ProcessQueue, original, "bridge preserves provider timer callback identity")
+                    local hooks = f.hooks
+                    f:Fire("ADDON_LOADED", "Questie")
+                    f:Fire("ADDON_LOADED", "QuestieDB")
+                    f:Fire("QUEST_LOG_UPDATE")
+                    f:Fire("PLAYER_REGEN_ENABLED")
+                    T.eq(f.registry.QuestieMap:InitializeQueue(), ticker, "later loading screens keep the existing draw ticker")
+                    T.eq(#f.tickers, 1, "resume events do not create duplicate draw tickers")
+                    T.eq(f.hooks, hooks, "resume events do not stack provider hooks")
+                    f:Tick()
+                    T.eq(f.queueRuns, 1, "captured timer callback still processes the provider queue")
+                end
+            end
+        end
+
+        for _, mode in ipairs({"next", "hide", "all"}) do
+            for _, deferredFirst in ipairs({true, false}) do
+                local f = populated("12.6.5")
+                -- The ticker exists before the bridge, as can occur with a
+                -- different startup order. Exercise its saved callback below.
+                f.registry.QuestieMap:InitializeQueue()
+                f:Fire("PLAYER_LOGIN")
+                T.ok(f.bridge.SetMode(mode))
+                f:Click(f.line)
+                local added = f:Pair(101, f.q.original, f.q.objective, 5, 5)
+                for _, icon in ipairs({added, added.minimapTwin}) do
+                    -- DrawWorldIcon fills data/coords before QueueDraw, then
+                    -- adds the twins to questIdFrames after both queue calls.
+                    icon.registered = false
+                    icon._loaded, icon.visible, icon.wantsShow = false, false, false
+                end
+                f.registry.QuestieMap:QueueDraw("world", {}, added)
+                f.registry.QuestieMap:QueueDraw("mini", {}, added.minimapTwin)
+                T.eq(f.near.visible, mode ~= "hide", "half-registered draw does not synchronously replace the current selection")
+                added.registered, added.minimapTwin.registered = true, true
+                -- A zero-delay refresh may fire before or after the 0.2s queue
+                -- tick. Correct filtering must survive both legal orderings.
+                if deferredFirst then
+                    f:Flush()
+                    T.eq(added.visible, false, "deferred selection does not show an unpositioned world frame")
+                    T.eq(added.minimapTwin.visible, false, "deferred selection does not show an unpositioned minimap frame")
+                end
+                f:Tick(); f:Flush()
+                local expected = mode == "hide" and 0 or mode == "next" and 1 or 4
+                T.eq(f:Visible(101, false), expected, "captured ticker redraw preserves " .. mode .. " world filtering")
+                T.eq(f:Visible(101, true), expected, "captured ticker redraw preserves " .. mode .. " minimap filtering")
+                T.eq(added.visible, mode ~= "hide", "new nearest checkpoint participates after captured ticker redraw")
+                T.eq(f.foreign.visible, true, "captured ticker redraw preserves unrelated quests")
+                f.worldMap:Hide()
+                T.eq(f:Visible(101, false), 8, "map close restores pins after captured ticker redraw")
+                f:Tick(); f:Flush()
+                T.eq(f:Visible(101, false), 8, "later provider ticks retain restored pin visibility")
+            end
+        end
+
+        do
+            local f = populated("12.6.5")
+            local original = f.registry.QuestieMap.ProcessQueue
+            C_Timer.After = nil
+            local ok, reason = f.bridge.Install()
+            T.eq(ok, false, "missing deferred scheduler leaves navigation unavailable")
+            T.ok(type(reason) == "string" and #reason > 0, "missing scheduler has a visible reason")
+            T.eq(f.hooks, 0, "missing scheduler is detected before provider mutation")
+            T.eq(f.registry.QuestieMap.ProcessQueue, original, "scheduler failure cannot alter the native callback")
+            T.ok(f.registry.QuestieMap:InitializeQueue(), "Questie's draw ticker remains usable without our deferred scheduler")
+        end
+
+        for _, failure in ipairs({"missing", "throws"}) do
+            local f = populated("12.6.5")
+            f.registry.QuestieMap:InitializeQueue()
+            f:Fire("PLAYER_LOGIN")
+            f:Click(f.line)
+            local after = C_Timer.After
+            if failure == "missing" then C_Timer.After = nil
+            else C_Timer.After = function() error("synthetic deferred scheduler failure") end end
+            local added = f:Pair(101, f.q.original, f.q.objective, 5, 5)
+            local ok = pcall(f.registry.QuestieMap.QueueDraw, f.registry.QuestieMap, "world", {}, added)
+            T.ok(ok, "scheduler becoming " .. failure .. " cannot throw into Questie's queue call")
+            T.eq(f:Visible(101, false), 8, "scheduler failure releases temporary filtering")
+            local _, reason = f.bridge.GetAvailability()
+            T.ok(type(reason) == "string" and #reason > 0, "runtime scheduler failure has a visible reason")
+            f:Tick()
+            T.eq(f:Visible(101, false), 8, "provider ticker remains usable after scheduler failure")
+            C_Timer.After = after
+            f:Click(f.line)
+            T.eq(f:Visible(101, false), 1, "navigation can recover after scheduler restoration")
+        end
+
         for _, supported in ipairs({"12.6.5", "12.8.0", "12.9.0"}) do
             local f = populated(supported)
             local originalShow, originalShould = f.near.FakeShow, f.near.ShouldBeHidden

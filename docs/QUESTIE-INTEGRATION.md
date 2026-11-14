@@ -1,6 +1,6 @@
 # Questie integration
 
-Updated for **0.2.0-alpha.2**, November 14, 2026 (UTC).
+Updated for **0.2.0-alpha.3**, November 14, 2026 (UTC).
 
 `PriestCompanion/QuestieBridge.lua` adapts Questie's tracker clicks and existing map icons. `Modules/Quests.lua` and `Modules/QuickMenu.lua` provide visible controls and failure messages. `GuideWaypoints.lua` uses a separately guarded provider to place this addon's own numbered guide markers. The integration is optional and uses private Questie interfaces, not a supported public extension API.
 
@@ -67,7 +67,11 @@ The adapter post-hooks `LineBuilder.AddTitle` and attaches existing quest titles
 
 Selected-quest filtering creates no additional pin layer. A temporary per-frame `ShouldBeHidden`/`FakeShow` wrapper and Questie's `FakeHide` suppress disallowed icons. Questie's fake visibility methods preserve HBD show/hide intent and notify its patrol-path owner logic. The adapter tracks the exact data object and which hides it owns. Numbered guide markers are a separate feature with separate ownership, described below.
 
-`QueueDraw` suppresses new selected-quest icons until selection is recalculated. A dirty `ProcessQueue` hook coalesces refresh after those icons draw. `QUEST_LOG_UPDATE` revalidates live objective completion and quest identity. There is no adapter polling loop.
+`QueueDraw` suppresses new selected-quest icons and schedules one coalesced refresh through `C_Timer.After(0, ourCallback)`. Questie finishes registering the frame pair before that callback runs. The filter can be selected before the native draw tick; unrendered frames remain hidden until the native renderer positions and shows them. `QUEST_LOG_UPDATE` also revalidates live objective completion and quest identity. There is no adapter polling loop.
+
+**Never hook or replace `QuestieMap.ProcessQueue`.** The pinned [12.6.5 map source](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Modules/Map/QuestieMap.lua) passes that exact function value to `C_Timer.NewTicker` in `InitializeQueue`. Alpha.2 hooked it before the staged initialization could register its timer, consistent with the user's callback rejection and successful reload with Quest Companion disabled. Hooking it later is also wrong: an existing ticker retains the original callback and bypasses a replacement stored in the table. Alpha.3 leaves that callback untouched in both startup orders.
+
+`C_Timer.After` must exist before installing hooks. A missing or throwing scheduler later releases owned filtering and reports failure. There is no synchronous fallback: `DrawWorldIcon` queues its frames before adding them to `questIdFrames`, so a synchronous refresh would see incomplete registration. The pinned [QuestieFrame visibility methods](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Modules/FramePool/QuestieFrame.lua) preserve whether an undrawn icon was previously shown.
 
 Map close, adapter disable and selection change release temporary filtering. `UnloadFrame` removes wrappers after actual unloading; deferred unloads wait for Questie's lifecycle. Restoration replaces a method or title callback only if it is still the adapter's own wrapper, preserves later third-party replacements and respects current native hidden preferences.
 
