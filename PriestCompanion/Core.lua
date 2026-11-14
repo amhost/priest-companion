@@ -1,6 +1,7 @@
 local addonName, ns = ...
 
-ns.VERSION = "0.1.0-alpha.2"
+ns.VERSION = "0.2.0-alpha.1"
+ns.PRODUCT_NAME = "Quest Companion"
 ns.TARGET_INTERFACE = 16001
 ns.Models = ns.Models or {}
 ns.modules, ns.order, ns.frames = {}, {}, {}
@@ -60,7 +61,7 @@ end
 function ns.IsCombat() return ns.Call(InCombatLockdown) == true end
 
 function ns.Notify(text)
-    local message = "|cffc4b5fdPriest Companion:|r " .. ns.Text(text, "")
+    local message = "|cffc4b5fdQuest Companion:|r " .. ns.Text(text, "")
     if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
         DEFAULT_CHAT_FRAME:AddMessage(message)
     elseif print then print(message) end
@@ -74,7 +75,7 @@ end
 
 local function recordError(key, message)
     ns.errors[key] = ns.Text(message, "Unavailable error detail"):sub(1, 500)
-    ns.WarnOnce(key, "A module reported an error (" .. key .. "). Use /pc diagnostics.")
+    ns.WarnOnce(key, "A module reported an error (" .. key .. "). Use /qc diagnostics.")
 end
 
 function ns.Copy(value, depth)
@@ -114,7 +115,7 @@ end
 ns.Clamp = clamp
 
 function ns.ModuleDB(id, defaults)
-    if not ns.db then error("Priest Companion settings are not initialized") end
+    if not ns.db then error("Quest Companion settings are not initialized") end
     ns.db.modules[id] = ns.Defaults(ns.db.modules[id], defaults or {})
     return ns.db.modules[id]
 end
@@ -164,7 +165,7 @@ function ns.RefreshAll()
 end
 
 local placements = {
-    priest = { "TOPLEFT", 24, -80 },
+    resources = { "TOPLEFT", 24, -80 },
     quests = { "TOPRIGHT", -32, -80 },
     preparation = { "LEFT", 24, 0 },
     prep = { "LEFT", 24, 0 },
@@ -185,7 +186,7 @@ end
 
 function ns.PanelMinimum(id, settings)
     local module = ns.modules[id]
-    if id == "priest" and settings and settings.barsOnly then return 200, settings.hideHeader and 68 or 92 end
+    if id == "resources" then return 200, settings and settings.hideHeader and 68 or 92 end
     return module.minWidth or 260, module.minHeight or 160
 end
 
@@ -290,54 +291,34 @@ function ns.SetPanelAppearance(id, key, value)
     return true
 end
 
-function ns.SetPriestBarsOnly(value)
-    if ns.IsCombat() then ns.Notify("Change the priest display after combat."); ns.Refresh("appearance"); return false end
-    if type(value) ~= "boolean" or not ns.modules.priest then return false end
-    local settings = ns.PanelSettings("priest")
-    if settings.barsOnly == value then return true end
-    ns.SavePlacement("priest")
-    if value then
-        settings.expandedWidth, settings.expandedHeight = settings.width, settings.height
-        settings.barsOnly = true
-        settings.width, settings.height = math.min(settings.width, 320), 92
-    else
-        settings.barsOnly = false
-        settings.width = ns.Number(settings.expandedWidth, ns.modules.priest.width)
-        settings.height = ns.Number(settings.expandedHeight, ns.modules.priest.height)
-    end
-    ns.ApplyPanel("priest")
-    ns.Refresh("appearance")
-    return true
-end
-
 function ns.ApplyCompactLayout()
     if ns.IsCombat() then ns.Notify("Apply compact layout after combat."); return false end
     for _, id in ipairs(ns.order) do ns.SavePlacement(id) end
     local layout = ns.db.layout
+    local resourcesShown = ns.PanelSettings("resources").shown
     ns.db.previousLayout = {name=layout, panels=ns.Copy(ns.db.layouts[layout])}
     ns.SetPanelAppearance("all", "scale", 0.8)
     ns.SetPanelAppearance("all", "opacity", 0)
     ns.SetPanelAppearance("all", "contentOpacity", 0.85)
     ns.SetPanelAppearance("all", "hideHeader", true)
-    ns.SetPriestBarsOnly(true)
     for _, id in ipairs(ns.order) do
         if ns.IsCustomizablePanel(id) then
             local settings = ns.PanelSettings(id)
-            settings.shown = id == "priest" or (layout == "Leveling" and id == "quests")
+            settings.shown = (id == "resources" and resourcesShown) or (layout == "Leveling" and id == "quests")
                 or (layout == "Healing" and id == "prep")
-            if id == "priest" then settings.height = 68 end
+            if id == "resources" then settings.height = 68 end
             ns.ApplyPanel(id)
         end
     end
     ns.RefreshAll()
-    ns.Notify("Compact " .. layout .. " layout applied. /pc restorelayout undoes it; /pc unlock shows drag handles.")
+    ns.Notify("Compact " .. layout .. " layout applied. /qc restorelayout undoes it; /qc unlock shows drag handles.")
     return true
 end
 
 function ns.SetPanelVisible(id, visible)
-    local aliases = {references="keys", preparation="prep"}
+    local aliases = {references="keys", preparation="prep", priest="resources"}
     if not ns.modules[id] and aliases[id] then id = aliases[id] end
-    if not ns.modules[id] then ns.Notify("Unknown panel. Use /pc for the panel list."); return false end
+    if not ns.modules[id] then ns.Notify("Unknown panel. Use /qc for the panel list."); return false end
     if ns.IsCombat() then
         ns.pendingVisibility = ns.pendingVisibility or {}
         ns.pendingVisibility[id] = not not visible
@@ -384,7 +365,7 @@ function ns.ResetLayout()
     ns.db.layouts[layout] = {}
     for _, id in ipairs(ns.order) do ns.ApplyPanel(id) end
     ns.SetPanelVisible("settings", true)
-    ns.Notify(layout .. " layout reset. /pc restorelayout restores the previous arrangement.")
+    ns.Notify(layout .. " layout reset. /qc restorelayout restores the previous arrangement.")
     return true
 end
 
@@ -407,7 +388,7 @@ end
 function ns.Diagnostics()
     local version, build, date, interface = ns.Call(GetBuildInfo)
     local lines = {
-        "Priest Companion " .. ns.VERSION,
+        ns.PRODUCT_NAME .. " " .. ns.VERSION,
         "Client: " .. ns.Text(version, "unavailable") .. " / " .. ns.Text(build, "unavailable"),
         "Interface: " .. ns.Text(interface, "unavailable") .. "; target: " .. ns.TARGET_INTERFACE,
         "Locale: " .. ns.Text(ns.Call(GetLocale), "unavailable"),
@@ -419,6 +400,9 @@ function ns.Diagnostics()
         "  Secret-value guard: " .. tostring(hasFunction(issecretvalue)),
         "  XP message event registered: " .. tostring(ns.events.CHAT_MSG_COMBAT_XP_GAIN ~= nil),
     }
+    if ns.QuestieBridge and ns.QuestieBridge.Status then
+        lines[#lines + 1] = "  " .. ns.Text(ns.Call(ns.QuestieBridge.Status), "Questie bridge unavailable")
+    end
     local errorKeys = {}
     for key in pairs(ns.errors) do errorKeys[#errorKeys + 1] = key end
     table.sort(errorKeys)
@@ -445,7 +429,7 @@ function ns.RunCommand(message)
         local value = rest:lower()
         if value == "healing" then ns.ApplyLayout("Healing")
         elseif value == "leveling" then ns.ApplyLayout("Leveling")
-        else ns.Notify("Use /pc layout healing or /pc layout leveling.") end
+        else ns.Notify("Use /qc layout healing or /qc layout leveling.") end
     elseif command == "show" or command == "hide" then
         local id = rest:lower()
         if id == "all" then
@@ -458,16 +442,19 @@ function ns.RunCommand(message)
         local ok, err = pcall(ns.commands[command], rest)
         if not ok then recordError("command-" .. command, err) end
     else
-        ns.Notify("/pc | /pc unlock | /pc lock | /pc layout healing | /pc layout leveling")
-        ns.Notify("/pc show <panel> | /pc hide <panel> | /pc resetlayout | /pc restorelayout | /pc diagnostics")
+        ns.Notify("/qc | /qc unlock | /qc lock | /qc layout healing | /qc layout leveling")
+        ns.Notify("/qc show <panel> | /qc hide <panel> | /qc resetlayout | /qc restorelayout | /qc diagnostics")
         ns.Notify("Panels: " .. table.concat(ns.order, ", "))
     end
 end
 
-SLASH_PRIESTCOMPANION1 = "/pc"
-SLASH_PRIESTCOMPANION2 = "/priestcompanion"
+-- Retain the registration and binding IDs so existing keybinds keep working.
+SLASH_PRIESTCOMPANION1 = "/qc"
+SLASH_PRIESTCOMPANION2 = "/questcompanion"
+SLASH_PRIESTCOMPANION3 = "/pc"
+SLASH_PRIESTCOMPANION4 = "/priestcompanion"
 SlashCmdList.PRIESTCOMPANION = ns.RunCommand
-BINDING_HEADER_PRIESTCOMPANION = "Priest Companion"
+BINDING_HEADER_PRIESTCOMPANION = "Quest Companion"
 BINDING_NAME_PRIESTCOMPANION_TOGGLE = "Open panel manager"
 BINDING_NAME_PRIESTCOMPANION_LOCK = "Lock / unlock panels"
 BINDING_NAME_PRIESTCOMPANION_LAYOUT = "Switch Healing / Leveling layout"
@@ -475,6 +462,18 @@ function PriestCompanion_Toggle() ns.RunCommand("") end
 function PriestCompanion_Lock() if ns.ready then ns.SetLocked(not ns.db.locked) end end
 function PriestCompanion_Layout()
     if ns.ready then ns.ApplyLayout(ns.db.layout == "Healing" and "Leveling" or "Healing") end
+end
+
+local function migrateResourceLayout(panels)
+    if not ns.Readable(panels) or type(panels) ~= "table" then return end
+    if panels.resources == nil and ns.Readable(panels.priest) and type(panels.priest) == "table" then
+        local resource = ns.Copy(panels.priest)
+        resource.height = resource.hideHeader and 68 or 92
+        resource.width = ns.Clamp(resource.width, 200, 320, 320)
+        panels.resources = resource
+    end
+    -- Legacy keys and spell lists remain intact for rollback. New keys win on
+    -- later logins, so the migration cannot overwrite a newer arrangement.
 end
 
 local function initializeDatabase()
@@ -487,6 +486,11 @@ local function initializeDatabase()
     })
     ns.db = PriestCompanionDB
     if ns.db.layout ~= "Healing" and ns.db.layout ~= "Leveling" then ns.db.layout = "Leveling" end
+    migrateResourceLayout(ns.db.layouts.Healing)
+    migrateResourceLayout(ns.db.layouts.Leveling)
+    if ns.Readable(ns.db.previousLayout) and type(ns.db.previousLayout) == "table" then
+        migrateResourceLayout(ns.db.previousLayout.panels)
+    end
     return true
 end
 
@@ -507,7 +511,7 @@ local function initializePanels()
     ns.RefreshAll()
     if not ns.db.welcomed then
         ns.db.welcomed = true
-        ns.Notify("Alpha loaded. /pc opens panels and layouts; /pc unlock enables dragging and resizing.")
+        ns.Notify("Alpha loaded. /qc opens panels and layouts; /qc unlock enables dragging and resizing.")
         ns.SetPanelVisible("settings", true)
     end
     local _, _, _, interface = ns.Call(GetBuildInfo)

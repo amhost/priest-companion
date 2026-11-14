@@ -42,14 +42,16 @@ for line in manifest.splitlines():
     entries.append(relative.as_posix())
 assert len(entries) == len(set(entries)), "Duplicate manifest entry"
 assert "Core.lua" == entries[0]
-assert entries.index("UI.lua") < entries.index("Modules/Priest.lua")
+assert entries.index("UI.lua") < entries.index("Modules/Resources.lua")
+assert entries.index("QuestieBridge.lua") < entries.index("Modules/Quests.lua")
+assert not (ADDON / "Modules" / "Priest.lua").exists(), "Remove the obsolete spell editor before packaging"
 
 OUTPUT.mkdir(exist_ok=True)
 def archive(path, files, base, prefix):
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as output:
         for file in sorted(files):
             name = prefix + file.relative_to(base).as_posix()
-            item = zipfile.ZipInfo(name, date_time=(2026, 11, 10, 0, 0, 0))
+            item = zipfile.ZipInfo(name, date_time=(2026, 11, 14, 0, 0, 0))
             item.compress_type = zipfile.ZIP_DEFLATED
             item.external_attr = 0o100644 << 16
             output.writestr(item, file.read_bytes())
@@ -57,8 +59,8 @@ def archive(path, files, base, prefix):
         assert check.testzip() is None
         assert all(name.startswith(prefix) and "/../" not in name for name in check.namelist())
 
-release = OUTPUT / f"PriestCompanion-{version}.zip"
-source = OUTPUT / f"PriestCompanion-{version}-source.zip"
+release = OUTPUT / f"QuestCompanion-{version}.zip"
+source = OUTPUT / f"QuestCompanion-{version}-source.zip"
 archive(release, [p for p in ADDON.rglob("*") if p.is_file()], ROOT, "")
 with zipfile.ZipFile(release) as check:
     assert "PriestCompanion/PriestCompanion.toc" in check.namelist()
@@ -67,7 +69,7 @@ source_files = [p for p in ROOT.rglob("*") if p.is_file()
                 and "dist" not in p.relative_to(ROOT).parts
                 and "__pycache__" not in p.relative_to(ROOT).parts
                 and ".git" not in p.relative_to(ROOT).parts]
-archive(source, source_files, ROOT, "priest-companion/")
+archive(source, source_files, ROOT, "quest-companion/")
 checksums=[]
 for path in (release,source):
     digest=hashlib.sha256(path.read_bytes()).hexdigest()

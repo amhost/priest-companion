@@ -1,30 +1,30 @@
-# Priest Companion
+# Quest Companion
 
-Movable panels for a priest's leveling and dungeon routine in World of Warcraft: Forever.
+Questie navigation and movable utility panels for every class in World of Warcraft: Forever.
 
-**Version: 0.1.0-alpha.2.** Targets interface **16001**. Offline Lua and mocked API checks pass. The updated UI has **not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
+**Version: 0.2.0-alpha.1.** Targets interface **16001**. Offline Lua and mocked API checks pass. The new Questie integration and repackage have **not yet been tested inside WoW Forever**. Actual rendering, protected-value behavior, saved-variable loading and coexistence with other addons remain to be checked in the game.
 
-No addon manager, external service or additional addon is required. All code is included and readable. The addon is free under the MIT license.
+Questie supplies the optional checkpoint navigation. The remaining panels can load without it. No addon manager or external service is required. Original source is included and free under the MIT license.
 
 [Download releases](https://github.com/amhost/priest-companion/releases) | [Report a bug](https://github.com/amhost/priest-companion/issues/new?template=bug_report.yml)
 
-**Quick compact setup:** enter `/pc compact`. This shows health/mana bars and the layout's quest or preparation panel, sets 80% scale, removes backgrounds, and leaves content at 85%. `/pc restorelayout` undoes it. Existing arrangements are preserved until you choose the preset.
+**Quick compact setup:** enter `/qc compact`. This shows the layout's quest or preparation panel, sets 80% scale, removes backgrounds, and leaves content at 85%. Resources stay optional and retain their previous visibility. `/qc restorelayout` undoes it. Existing arrangements are preserved until you choose the preset.
 
-**Fine tune a panel:** enter `/pc appearance priest`, or use a panel's **Appearance** button in `/pc`. Background and content opacity each run from 0% to 100%; scale runs from 50% to 150%. See [UI controls](docs/UI-CONTROLS.md) and [manual companion-addon downloads](docs/COMPANION-ADDONS.md).
+**Fine tune a panel:** enter `/qc appearance resources`, or use a panel's **Appearance** button in `/qc`. Background and content opacity each run from 0% to 100%; scale runs from 50% to 150%. See [UI controls](docs/UI-CONTROLS.md) and the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md).
 
 ## Features
 
 | Feature | Alpha behavior |
 | --- | --- |
 | Movable panels | Unlock, drag the title, resize from the bottom-right corner, and lock again. Position, size, scale, opacity and visibility are saved per layout. Movement and layout changes wait for combat to end. |
-| Priest information | Health and mana bars, with an optional bars-only view. The full view includes spell references you choose using client spell names or IDs. Restricted values are used only in supported display setters. |
-| Quest Helper | Current quest titles and objective progress. Select a quest for Details or Map. Map guidance uses coordinates returned by the client. Optional NPC quest auto-accept, with Shift bypass, defaults off. |
+| Resources | Optional compact health and current-resource bars. Mana, rage, energy and other resource types follow the character. No chosen-spell editor or rotation manager. Restricted values are used only in supported display setters. |
+| Quest Helper | One click on a quest row or supported Questie tracker title opens its checkpoint map. Hide / Next / All controls use the clicked quest's existing Questie pins. Optional NPC quest auto-accept, with Shift bypass, defaults off. |
 | Healing and Leveling layouts | Two independent arrangements. Switching layouts changes this addon's panels, not talents or gameplay bindings. |
 | Dungeon preparation | Editable manual checklist, minimum equipment durability, broken-item count, and general bag-space summary. Combat shows the last out-of-combat snapshot. |
 | Keybind and mouseover references | Actual bindings for the 12 main action buttons, personal notes, and copyable mouseover macro text for a spell you select. |
 | Professions and shopping | Manual goals and item-quantity targets, categories, editing, manual completion and delete/undo. Readable carried inventory is compared with your target. Bank storage and charges are excluded. |
 | Kill Tracker | Automatic named XP-credit kills, separate manual labeled kills, session and all-time counts, and target notes. Coverage is explicitly partial. |
-| Appearance | Background/content opacity and scale sliders for one or all gameplay panels, hidden titles while locked, a Priest bars-only option, font sizing, optional cursor tooltips, and native Edit Mode access. |
+| Appearance | Background/content opacity and scale sliders for one or all gameplay panels, hidden titles while locked, font sizing, optional cursor tooltips, and native Edit Mode access. |
 
 ## Install without an addon manager
 
@@ -33,61 +33,73 @@ No addon manager, external service or additional addon is required. All code is 
 3. Open that client's `Interface\AddOns` directory. Create `Interface` and then `AddOns` only if they do not exist.
 4. Extract the release ZIP. Copy its **PriestCompanion** folder into `AddOns`.
 5. The file directly below the copied folder must be `PriestCompanion\PriestCompanion.toc`. Avoid an extra ZIP-name folder between `AddOns` and `PriestCompanion`.
-6. Start Forever. On the character-selection screen, open **AddOns** and enable **Priest Companion** for the character.
-7. Enter the world and type `/pc` in chat. The manager opens automatically the first time.
+6. Start Forever. On the character-selection screen, open **AddOns** and enable **Quest Companion** for the character.
+7. Enter the world and type `/qc` in chat. The manager opens automatically the first time.
 
-If updating, exit the game and move the old `PriestCompanion` folder to a backup location outside `AddOns`, then copy the new folder into `AddOns`. Keep your `WTF` folder and saved settings. This avoids stale addon files while retaining a recoverable code backup.
+If updating, exit the game and move the old `PriestCompanion` folder to a backup location outside `AddOns`, then copy the new folder into `AddOns`. The internal `PriestCompanion` folder and `PriestCompanionDB` save name intentionally remain unchanged for this upgrade; do not rename the folder or install a second copy. Keep your `WTF` folder and saved settings. This avoids stale addon files while retaining a recoverable code backup.
 
 ## Arrange the panels
 
-Type `/pc unlock`, drag each panel by its title, and resize with the bottom-right grip. Type `/pc lock` when finished. Hidden titles and zero-opacity panels temporarily reveal editing handles when unlocked. The manager's **Appearance** buttons open the sliders for each panel.
+Type `/qc unlock`, drag each panel by its title, and resize with the bottom-right grip. Type `/qc lock` when finished. Hidden titles and zero-opacity panels temporarily reveal editing handles when unlocked. The manager's **Appearance** buttons open the sliders for each panel.
 
-Choose **Healing** or **Leveling** in the manager to arrange that layout separately. The initial Healing layout shows Priest information, Dungeon preparation and Keybind references. The initial Leveling layout shows Priest information, Quest Helper, Professions & Shopping and Kill Tracker. Every feature panel can be enabled in either layout.
+Choose **Healing** or **Leveling** in the manager to arrange that layout separately. A new Healing layout shows Dungeon preparation and Keybind references. A new Leveling layout shows Quest Helper, Professions & Shopping and Kill Tracker. Resources are optional. Existing Priest-panel placement is copied to Resources on upgrade, including its visibility, scale and opacity; the removed editor no longer reserves its old height. Every feature panel can be enabled in either layout.
 
-Choose **Compact layout** to show Priest bars plus Quest Helper in Leveling, or Priest bars plus Dungeon preparation in Healing. Other panels remain available in the manager. **Undo layout** restores the single arrangement saved before the latest Compact layout or Reset layout action. These actions keep goals, spell references, notes and kill history.
+Choose **Compact layout** to show Quest Helper in Leveling, or Dungeon preparation in Healing. An already-visible Resources panel stays visible. Other panels remain available in the manager. **Undo layout** restores the single arrangement saved before the latest Compact layout or Reset layout action. These actions keep goals, notes and kill history. Old chosen-spell data is retained for rollback, although its editor has been removed.
 
 ## Commands
 
 | Command | Action |
 | --- | --- |
-| `/pc` or `/priestcompanion` | Open or close the manager |
-| `/pc unlock` | Enable dragging and resizing outside combat |
-| `/pc lock` | Stop movement and save placement |
-| `/pc compact` | Apply the compact preset to the current layout, retaining an undo copy |
-| `/pc appearance` | Open appearance controls for all gameplay panels |
-| `/pc appearance priest` | Open appearance controls for the Priest panel |
-| `/pc layout healing` | Apply or queue the Healing layout |
-| `/pc layout leveling` | Apply or queue the Leveling layout |
-| `/pc show priest` | Show Priest information |
-| `/pc show quests` | Show Quest Helper |
-| `/pc show prep` | Show Dungeon preparation |
-| `/pc show keys` | Show Keybind and mouseover references |
-| `/pc show goals` | Show Professions & Shopping |
-| `/pc show kills` | Show Kill Tracker |
-| `/pc show appearance` | Show Appearance |
-| `/pc show all` | Show all panels |
-| `/pc hide all` | Hide all panels; `/pc` still opens the manager |
-| `/pc resetlayout` | Reset current arrangement, retaining a recovery copy |
-| `/pc restorelayout` | Restore the arrangement saved before the latest Compact layout or Reset layout action |
-| `/pc kill Practice target` | Record one manual kill under the label Practice target |
-| `/pc killsession` | Start fresh session counters while retaining all-time history |
-| `/pc diagnostics` | Open a copyable build/capability report |
+| `/qc` or `/questcompanion` | Open or close the manager; `/pc` and `/priestcompanion` remain aliases |
+| `/qc unlock` | Enable dragging and resizing outside combat |
+| `/qc lock` | Stop movement and save placement |
+| `/qc compact` | Apply the compact preset to the current layout, retaining an undo copy |
+| `/qc appearance` | Open appearance controls for all gameplay panels |
+| `/qc appearance resources` | Open appearance controls for Resources |
+| `/qc layout healing` | Apply or queue the Healing layout |
+| `/qc layout leveling` | Apply or queue the Leveling layout |
+| `/qc show resources` | Show optional health/current-resource bars |
+| `/qc show quests` | Show Quest Helper |
+| `/qc locations next` | Enable one supported checkpoint for the clicked quest |
+| `/qc locations all` | Enable all supported remaining rendered locations for the clicked quest |
+| `/qc locations hide` | Hide the clicked quest's supported locations during its focused map view |
+| `/qc locations off` or `/qc locations on` | Disable or re-enable the Questie adapter, retaining the selected mode |
+| `/qc show prep` | Show Dungeon preparation |
+| `/qc show keys` | Show Keybind and mouseover references |
+| `/qc show goals` | Show Professions & Shopping |
+| `/qc show kills` | Show Kill Tracker |
+| `/qc show appearance` | Show Appearance |
+| `/qc show all` | Show all panels |
+| `/qc hide all` | Hide all panels; `/qc` still opens the manager |
+| `/qc resetlayout` | Reset current arrangement, retaining a recovery copy |
+| `/qc restorelayout` | Restore the arrangement saved before the latest Compact layout or Reset layout action |
+| `/qc kill Practice target` | Record one manual kill under the label Practice target |
+| `/qc killsession` | Start fresh session counters while retaining all-time history |
+| `/qc diagnostics` | Open a copyable build/capability report |
 
 Panel-manager, lock and layout-switch actions are also declared for WoW's keybinding interface. Their availability in the live Forever settings screen has not yet been verified. No keys are assigned automatically.
 
 ## Use the modules
 
-### Priest information
+### Resources
 
-In Appearance, enable **Priest: health and mana bars only** for a small resource display. Disable it to return to the previous full panel size and chosen references. This preference is separate for Healing and Leveling.
-
-Enter a spell name or numeric spell ID and choose **Add**. The client supplies its spell name and learned status where available. The references are a list you choose. They are not live healing priorities or an automatic spell selector.
+Enter `/qc show resources` for two compact bars: health and the character's current resource. There is no separate bars-only switch because the chosen-spell editor has been removed. Mouseover macro references remain in the separate References panel. No rotation guidance was added.
 
 ### Quest Helper
 
-Select a quest in your current log. **Details** opens its client details, with a readable objective-text fallback if that helper is unavailable. **Map** uses a client-provided waypoint. It reports missing location data instead of substituting coordinates from a different version of WoW. This alpha does not contain a world-wide quest-location database or an optimized leveling route.
+Plain left-click a quest title in the Questie tracker on the right side of the screen, or click a row in Quest Helper. A supported quest opens its map in the saved location mode. The helper's rows no longer require a second Map-button click; only the selected row expands its objectives. Shift-click or right-click a helper row opens quest details.
 
-For optional acceptance, enter `/pc show quests` and check **Auto-accept NPC quests**. The setting is off initially. When enabled, opening an ordinary NPC quest offer requests acceptance outside combat. Hold **Shift before opening the offer** to leave it open for reading and manual acceptance. The setting applies in both layouts, including when the Quest Helper panel is hidden; uncheck the box to turn it off.
+Use **Locations > Hide / Next / All** in `/qc show quests`, or the commands above:
+
+- **Hide:** temporarily suppress the selected quest's supported Questie locations while its focused map view is open.
+- **Next:** show one nearest supported unfinished checkpoint, with a minimap twin for the same point. When the quest is ready, use its finisher. Nearest is coordinate distance, not a walking route or prerequisite order.
+- **All:** show the selected quest's supported remaining rendered locations. Questie's own clustering, phase and visibility rules still apply.
+
+Other quests keep their own icons and preferences. Closing the world map restores the temporary filter. This is not a global filter for every tracked quest. Uncheck **Questie title clicks**, or enter `/qc locations off`, to restore ordinary Questie clicks and icon behavior. Hiding our Quest Helper panel does not disable the bridge, so `/qc hide quests` is useful once configured.
+
+Modified clicks, right-clicks, controller input, combat and unavailable/changed Questie interfaces retain Questie's normal click handling. Our own helper falls back to quest details when checkpoint navigation cannot run. It does not replace your personal waypoint. There is no guessed fallback pin or copied world database. See [integration boundaries](docs/QUESTIE-INTEGRATION.md).
+
+For optional acceptance, enter `/qc show quests` and check **Auto-accept NPC quests**. The setting is off initially. When enabled, opening an ordinary NPC quest offer requests acceptance outside combat. Hold **Shift before opening the offer** to leave it open for reading and manual acceptance. The setting applies in both layouts, including when the Quest Helper panel is hidden; uncheck the box to turn it off.
 
 Shared or unknown givers, item-started quests, adventure-map and area-trigger offers, already autoaccepted quests and PvP confirmations stay with the game's own flow. Gossip choices, completion, turn-ins and rewards remain manual. Missing or restricted data leaves acceptance manual. A skipped or failed offer is not retried automatically; close and reopen it deliberately if needed. The panel states when the required APIs are unavailable. Native client behavior remains unverified in this alpha.
 
@@ -113,7 +125,7 @@ Enter a target label and optional note, then choose **+1 manual** for a manual c
 
 ### Appearance
 
-Use Prev/Next to select a panel or **All panels**. Background opacity affects the background, border and title strip; content opacity affects bars, text and controls separately. **Hide title when locked** removes the title and close button while locked. At 0% content opacity, content is hidden and releases input focus. `/pc` and `/pc appearance` stay readable for recovery.
+Use Prev/Next to select a panel or **All panels**. Background opacity affects the background, border and title strip; content opacity affects bars, text and controls separately. **Hide title when locked** removes the title and close button while locked. At 0% content opacity, content is hidden and releases input focus. `/qc` and `/qc appearance` stay readable for recovery.
 
 Appearance changes apply outside combat and are saved per layout. Configuration and copy dialogs are excluded from gameplay opacity and scale edits. Font size and optional cursor tooltips apply to both layouts. Native Edit Mode arranges Blizzard frames. These controls do not configure third-party nameplate addons.
 
@@ -125,6 +137,14 @@ The diagnostic report omits character names, quest data, lists, target history a
 
 ## Validation status
 
-Read `docs/VALIDATION.md` for the exact executed checks and the short in-game verification plan. Offline tests establish behavior only in their Lua 5.4/mock scope. They do not establish WoW's native Lua compatibility, secure execution or runtime behavior.
+Read [validation](docs/VALIDATION.md) for the executed checks and use the [fresh-login checklist](docs/FRESH-LOGIN-CHECKLIST.md) for the next game session. Offline tests establish behavior only in their Lua 5.4/mock scope. They do not establish WoW's native Lua compatibility, secure execution or runtime behavior.
 
-The `16001` target is grounded in the current [Questie Forever manifest](https://github.com/Questie/Questie/blob/master/Questie_Forever.toc), not an observation of the user's installed client. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
+The `16001` target is grounded in the inspected [Questie 12.9.0 Forever manifest](https://github.com/Questie/Questie/blob/624cb783bfc1d272aeccd3dfa353dde8452e276f/Questie_Forever.toc), not an observation of the user's installed client. API sourcing and deliberate fallbacks are recorded in `docs/API-NOTES.md`.
+
+## Missing dungeon quests: current recommendation
+
+Use the installed DungeonJournal for dungeon quest browsing while using Questie for pickup/objective locations. The separate [dungeon prototype](https://github.com/amhost/priest-companion/pull/1) is not part of this package and cannot yet give a complete pre-run readiness verdict.
+
+The prototype has 18 provisional records: Deadmines 8, Hall of Thanes 5 and Ragefire Chasm 5. All 18 explicitly lack complete eligibility verification; none ships mandatory prerequisite groups. A list of source quests alone does not prove which gates are required. Treating these entries as pickup-ready could still send you to the dungeon before a necessary chain is complete.
+
+The next useful database task is to verify one dungeon end to end: quest ID, faction/class restrictions, minimum level, pickup NPC and coordinates, mandatory prerequisite groups, follow-ups, and repeatable behavior. Compare those records with the character's active and completed quests, and show Completed / In log / Available / Prerequisite needed / Ineligible / Unknown. Only verified mandatory gates may yield Available. That targeted dataset, with source commit/date per record, is the next deliverable. A second whole-world crawl is not required for this release's navigation.

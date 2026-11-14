@@ -45,10 +45,10 @@ end
 
 local function showMacro(self, text)
     if ns.IsCombat() then ns.Notify("Create a reference macro after combat."); return end
-    if not ns.Models.Priest or not ns.Models.Priest.ResolveSpell then
+    if not ns.Models.Spells or not ns.Models.Spells.ResolveSpell then
         ns.Notify("Spell lookup is unavailable."); return
     end
-    local spell, problem = ns.Models.Priest.ResolveSpell(text)
+    local spell, problem = ns.Models.Spells.ResolveSpell(text)
     if not spell then ns.Notify(problem); return end
     if spell.learning == "Not learned" then
         ns.Notify("That spell is not learned by this character."); return

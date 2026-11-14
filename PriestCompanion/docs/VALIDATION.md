@@ -1,83 +1,65 @@
-# Validation and first in-game run
+# Validation record
 
-## Executed offline checks
+Version: **0.2.0-alpha.1**. Executed November 14, 2026 (UTC). Environment: managed Linux workspace, Python 3, `liblua5.4.so.0` through the standard-library ctypes runner. No WoW client was available.
 
-Date: November 13, 2026 (UTC). Version: 0.1.0-alpha.2. Environment: managed Linux workspace, Python 3, installed `liblua5.4.so.0` through ctypes. No third-party Python packages are used by the check runner.
+## Executed checks
 
-Command, run from the source project's root:
+Run from the source project root in Bash:
 
 ```bash
 python3 tools/check.py
+git diff --check
 ```
 
-Observed result:
+Observed test output:
 
 ```text
-PASS: syntax for 10 addon Lua files (Lua 5.4 parser)
+PASS: syntax for 12 addon Lua files (Lua 5.4 parser)
 PASS: goals_cases.lua
 PASS: quest_kill_cases.lua
 PASS: gameplay_cases.lua
 PASS: appearance_cases.lua
+PASS: migration_cases.lua
+PASS: quest_navigation_cases.lua
+PASS: questie_bridge_cases.lua
 PASS: integration, layouts, combat queue, secret guards and diagnostics
-PASS: 884 assertions in offline Lua 5.4 + bounded WoW UI/API mocks
+PASS: 1687 assertions in offline Lua 5.4 + bounded WoW UI/API mocks
 NOT TESTED: actual WoW client, secure execution, rendering, combat restrictions, locale behavior or live saved-file loading
 ```
 
-Coverage includes localized kill-message formats, unnamed-XP rejection, invalid input, manual/automatic provenance, quest normalization, missing map context, optional APIs, goals and delete/undo, bank-exclusion flags, learned-spell states, macro-input validation, equipment and bag summaries, scaled layout persistence, separate profile state, combat deferral, deleted-checklist persistence, copy-dialog focus and scrolling, secret-resource pass-through and exclusion from saved state, and private-data exclusion from diagnostics. Quest acceptance checks cover default-off behavior, checkbox persistence, hidden-panel event handling, Shift bypass, combat, repeated events, special offers, giver filtering, missing APIs, API errors and restricted values.
+`git diff --check` passed with no whitespace errors. The count includes the production TOC loading the bridge, isolated bridge fixtures and the actual Quest Helper row/control callbacks. It is an assertion count, not 1,687 independent game scenarios.
 
-The UI cases exercise real slider callbacks with 0% values, silent display synchronization, background/header/border transparency independent of content, hidden-body input-focus release, configuration recovery, temporary edit-header sizing, screen-edge anchor stability, scale changes with a scaled UIParent, compact presets and undo, bars-only size restoration, combat guards and persisted zero values. These cases caught and verified fixes for a missing slash-command route and temporary-header position drift.
+## New behavior covered
 
-The mocks deliberately do not emulate Blizzard's secure execution or native rendering. A pass is not evidence that the addon is already compatible with a live client. Source uses Lua 5.1-compatible syntax, but only the Lua 5.4 parser/runtime has been exercised here.
+- Plain helper-row click requests navigation once for that row's quest ID. Shift/right-click opens details. Unselected objectives collapse. Missing/disabled bridge falls back without creating a personal waypoint or directly selecting the native map frame.
+- Hide / Next / All and off/on retain their distinct meanings. Invalid modes and combat edits do not silently change settings.
+- Questie pooled title reuse, current quest identity, modifier/right-click/controller fallbacks, required methods/version guards and partial installation failure.
+- One supported world pin plus its minimap twin in Next; selected-quest-only filtering; unfinished objectives and finishers; existing native hidden-icon preferences; no new marker layer or Questie saved preference changes.
+- Map-close restoration, switching quests, disabling, frame unload/reuse, new pins after redraw, third-party method replacements and combat resumption.
+- A reviewer reproduced a combat issue where native redraw revealed filtered pins and the post-combat handler failed to reapply the selection. The fixed regression independently returned Next/Hide/All to 1/0/3 world pins in the bounded fixture.
+- Resources uses current power type and has no chosen-spell editor. The generic spell helper still serves non-priest mouseover references.
+- Both old layouts and the saved undo layout migrate additively. Existing Resources preferences take precedence. Legacy spell data, notes, goals, empty checklists, zero-opacity values, SavedVariables identity, binding IDs and aliases remain intact.
 
-## First in-game verification
+## Existing regression coverage
 
-Install with the README instructions. Keep this an alpha until the checks below have observed results.
+The suite retains goals and delete/undo, carried-count bank exclusions, manual versus automatic kill provenance, localized named XP parsing, quest normalization, guarded spell lookup, macro-input validation, preparation summaries, optional NPC quest acceptance and its Shift/combat/special-offer guards. Appearance coverage includes independent 0% opacity, input-focus release, configuration recovery, scaled placement, temporary edit handles, separate layouts, Compact/Undo and combat deferral.
 
-### 1. Identify the client
+The tests deliberately do not emulate secure execution, taint, native rendering, mouse hit testing, native locale behavior or actual saved-file loading. Source aims for Lua 5.1-compatible syntax, but only Lua 5.4 was parsed/executed here. Inspection of a provider's source is not proof of the user's installed version or native compatibility.
 
-Inside WoW, press Enter, paste the following line, and press Enter:
+## Native status and checklist
 
-```lua
-/run local v,b,d,t=GetBuildInfo(); print("Version:",v,"Build:",b,"Date:",d,"Interface:",t)
+The user reported that the portions of the earlier build they tried seemed to work. No exact client build or enumerated checks accompanied that feedback. It is an informal smoke report for the prior build, not a completed pass for this new adapter.
+
+Every native check in [FRESH-LOGIN-CHECKLIST.md](FRESH-LOGIN-CHECKLIST.md) remains pending. Start with checks 1-6: identity/data, appearance recovery, direct click, multiple checkpoints, Hide, map close and Off. Later checks cover real quest completion, full restart, combat and coexistence with OpenMap/Dialogue UI. The separate dungeon prototype checks do not apply to this package.
+
+For an integration-only recovery, enter `/qc locations off`. For a complete disable, use **character selection > AddOns > Quest Companion**, uncheck it and log in. Retain the saved settings and code backup described in the checklist.
+
+## Packaging
+
+Run from the source project root in Bash:
+
+```bash
+python3 tools/build.py
 ```
 
-Record the printed version, build and interface. The declared target is 16001. A different interface requires a compatibility review; do not change the TOC just to silence a mismatch.
-
-### 2. Load and arrange
-
-Enter `/pc`. Open each of the seven feature panels from the manager. Enter `/pc unlock`, drag each title, and resize each panel from its bottom-right grip. Enter `/pc lock`. Expected: the panels stay where placed, inputs and buttons remain visible, and locked panels do not move.
-
-### 3. Verify both layouts and persistence
-
-Use `/pc layout healing`, arrange it, then use `/pc layout leveling` and arrange it differently. Switch between them. Expected: each arrangement returns independently.
-
-Add one checklist entry, one personal reference note and one manual shopping goal. Use `/reload`. Expected: those items and both layouts persist. Next, use **Escape > Exit Game**, restart the same Forever client, and log in to the same character. Expected: the saved items and layouts still persist. A reload alone does not establish cold-start persistence.
-
-### 4. Verify the feature panels
-
-| Area | Exact action | Result that matters |
-| --- | --- | --- |
-| Priest | Open `/pc show priest`, add a spell currently in the spellbook, observe health and mana outside and during ordinary play | Display works without Lua errors; references identify the correct client spell |
-| Quest Helper | Open `/pc show quests`, select an existing quest, click Details and Map | Correct objective text; a provided location opens, or missing location is stated |
-| Quest acceptance | In `/pc show quests`, confirm **Auto-accept NPC quests** starts unchecked. Enable it and open an ordinary NPC quest offer. For the next offer, hold Shift before opening it. Disable the checkbox when finished. | Enabled ordinary acceptance works outside combat; Shift keeps an offer open for reading; disabled acceptance stays manual. No automatic gossip selection, turn-in or reward choice. Missing APIs show an unavailable message. |
-| Preparation | Open `/pc show prep`, add/check/remove an entry, compare equipment and bags with the native UI | Manual marks stay manual; general-bag and equipment summaries are accurate or explicitly partial |
-| References | Open `/pc show keys`, compare a known main-bar binding, enter a learned helpful spell and click View / copy | Correct binding and spell text; copying does not create a macro automatically |
-| Goals | Open `/pc show goals`, add a target using a known carried item's ID or link, then change the carried quantity during normal play | Carried and remaining counts update; manual completion stays independent; Delete/Undo restores the selected row |
-| Kills | Open `/pc show kills`, note counts, defeat one ordinary XP-granting creature, then add one manual target | At most the supported XP-credit event adds an automatic count; the manual action adds only a manual count |
-| Interface | Open `/pc appearance priest`, drag Background to 0% and Content to 85%, enable bars-only and hide-title, then lock. Try Content at 0%, recover through `/pc appearance`, unlock and resize, then lock again. | The bars have no background, configuration stays readable, zero content releases interaction, and repeated unlock/lock does not shift or grow the panel. |
-
-For the remaining appearance and cold-start checks, follow [UI controls > Verify in the game](UI-CONTROLS.md#verify-in-the-game). Enable cursor tooltips and hover an ordinary item outside combat to check that the option remains reversible.
-
-### 5. Verify combat deferral and coexistence
-
-During ordinary combat, request the other layout with `/pc layout healing` or `/pc layout leveling`. Expected: the arrangement remains stable during combat and changes afterward. Check that no forbidden-action or secret-value errors appear.
-
-Complete a normal questing or dungeon session with the other addons you normally use. Inspect `/pc diagnostics`. Expected: zero module errors and usable panels. Record any conflict with the exact other addon and version rather than assuming compatibility from the offline tests.
-
-### Recovery
-
-If a layout is inconvenient, use `/pc resetlayout`; `/pc restorelayout` undoes the last reset or Compact preset. If this alpha causes game UI problems, log out to character selection, choose **AddOns**, uncheck **Priest Companion**, and log back in. This disables the addon without deleting its saved settings or your game data.
-
-## Packaging checks
-
-The build script verifies that every manifest entry exists with exact path casing, that Lua source is UTF-8, that the binding XML parses, that required documents are present and that generated ZIP paths stay under their intended top-level directory. It writes SHA-256 hashes for the distributable and source archives. These archive checks are separate from gameplay validation.
+The build checks case-correct manifest paths and load order, absence of the obsolete Priest module, UTF-8 source, XML syntax, required documents, ZIP path boundaries and archive integrity. It generates the install/source archives and SHA-256 sums. Release publication separately verifies the exact remote source blobs, commit parent, tag target, uploaded asset sizes and digests. Those packaging checks do not complete native gameplay checks.

@@ -1,14 +1,17 @@
 ## Interface: 16001
-## Title: Priest Companion
-## Notes: Movable priest, quest, preparation, reference, goals and kill-tracking panels.
-## Author: Priest Companion contributors
-## Version: 0.1.0-alpha.2
+## Title: Quest Companion
+## Notes: Quest navigation and configurable preparation, reference, goals and tracking panels for every class.
+## Author: Quest Companion contributors
+## Version: 0.2.0-alpha.1
 ## SavedVariablesPerCharacter: PriestCompanionDB
-## IconTexture: Interface\Icons\ClassIcon_Priest
+## OptionalDeps: Questie, QuestieDB
+## IconTexture: Interface\Icons\INV_Misc_Map_01
 
 Core.lua
 UI.lua
-Modules\Priest.lua
+Spells.lua
+QuestieBridge.lua
+Modules\Resources.lua
 Modules\Quests.lua
 Modules\Preparation.lua
 Modules\References.lua

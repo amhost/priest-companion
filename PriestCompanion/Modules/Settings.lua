@@ -11,7 +11,7 @@ local function textHeight(label, minimum)
 end
 
 ns.RegisterModule({
-    id="settings", title="Priest Companion", internal=true,
+    id="settings", title="Quest Companion", internal=true,
     width=420, height=450, minWidth=340, minHeight=350,
     defaultEnabled={Healing=false,Leveling=false},
     Create=function(self)
