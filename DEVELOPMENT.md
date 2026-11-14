@@ -1,6 +1,6 @@
 # Quest Companion development notes
 
-Working release: 0.2.0-alpha.2. Target: WoW Forever interface 16001, matching the user's alpha.1 diagnostic and inspected Questie Forever manifests. Alpha.2 runtime compatibility is unverified until tested in the user's game. Original code; Questie is optional for tracker navigation and guide markers. The guide checklist remains usable without it. Source aims for Lua 5.1-compatible syntax; the executed parser/harness is Lua 5.4. No combat automation, arbitrary file/network access, or protected-data bypasses.
+Working release: 0.2.0-alpha.3. Target: WoW Forever interface 16001, matching the user's alpha.1 diagnostic and inspected Questie Forever manifests. The alpha.2 UI rendered in the user's screenshot, but Questie initialization failed after reload with this addon enabled. Alpha.3 removes the conflicting callback hook; native hotfix validation remains pending. Original code; Questie is optional for tracker navigation and guide markers. The guide checklist remains usable without it. Source aims for Lua 5.1-compatible syntax; the executed parser/harness is Lua 5.4. No combat automation, arbitrary file/network access, or protected-data bypasses.
 
 ## Shared module interface
 
@@ -67,6 +67,8 @@ Self-contained module model logic should be exported under `ns.Models.<Name>` fo
 - `tools/build.py`: validates and builds deterministic installable/source archives.
 
 Run both tools from this directory. The addon itself has no external runtime dependency. Keep API failures visible, preserve unrelated settings, and do not mistake mock results for in-game validation. Before expanding a combat feature, inspect the relevant client APIs and test it in the matching Forever build.
+
+Do not hook or replace `QuestieMap.ProcessQueue`: Questie passes its exact function value to `C_Timer.NewTicker`. Schedule the bridge's own coalesced `C_Timer.After(0, callback)` from `QueueDraw` instead. The callback must run after queued frames are registered; never use a synchronous fallback. Reject missing scheduling support before hook mutations and release owned filtering if scheduling later fails.
 
 ## Verification scope
 

@@ -1,6 +1,6 @@
 # Quest Companion controls
 
-For **0.2.0-alpha.2**. Start with the **map icon beside the minimap**. Routine guide, quest-location and appearance controls are available by clicking; slash commands are optional. Make configuration changes outside combat.
+For **0.2.0-alpha.3**. Start with the **map icon beside the minimap**. Routine guide, quest-location and appearance controls are available by clicking; slash commands are optional. Make configuration changes outside combat.
 
 ## Start from the minimap
 

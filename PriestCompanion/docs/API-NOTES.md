@@ -1,12 +1,20 @@
 # API evidence and implementation boundaries
 
-Original API research: November 10, 2026. Questie and guide integration update for **0.2.0-alpha.2**: November 14, 2026 (UTC). This document distinguishes inspected source from native runtime evidence. No actual Forever client was available in the build environment.
+Original API research: November 10, 2026. Questie and guide integration update for **0.2.0-alpha.3**: November 14, 2026 (UTC). This document distinguishes inspected source from native runtime evidence. No actual Forever client was available in the build environment.
 
 ## Target declaration
 
 The pinned [Questie 12.6.5 Forever manifest](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Questie_Forever.toc) declares interface **16001**, version **12.6.5**, and QuestieDB contract **4**. The user's supplied diagnostic reports **1.60.1 / build 70938 / interface 16001 / enUS**, with Questie **12.6.5** and QuestieDB **1.0.14**. Those are distinct evidence sources: the source declaration agrees with the reported interface, while neither proves that this release has been exercised inside that client. Quest Companion's legacy-named TOC targets 16001 and reports a mismatch in chat if loaded elsewhere.
 
 The source-backed compatibility gate accepts exactly **12.6.5** plus the existing **12.8.x / 12.9.x** families, with method-shape checks. Legacy 12.6.5 resolves HBD libraries through `LibStub:GetLibrary`; the inspected modern versions use Questie loader modules. This is an implemented compatibility path, not only a relaxed version check. Unsupported versions remain unavailable with a visible reason. The exact inspected commits, source contracts and remaining checks are in [QUESTIE-INTEGRATION.md](QUESTIE-INTEGRATION.md).
+
+## Questie startup timer contract
+
+The alpha.2 report contains `C_Timer.NewTicker` bad argument #2 at `QuestieMap.lua:235`, followed by the user's successful Questie reload with Quest Companion disabled. At the pinned [12.6.5 source](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Modules/Map/QuestieMap.lua), `InitializeQueue` passes `QuestieMap.ProcessQueue` directly to the timer. Our previous secure hook changed that field during early login. The [staged initializer](https://github.com/Questie/Questie/blob/0214175640abba697f535b2be73787a4c2f2b32b/Modules/QuestieInit.lua) yields before reaching the queue stage.
+
+Alpha.3 removes the hook and its method dependency entirely. QueueDraw schedules our own Lua closure with `C_Timer.After(0, ...)`; callback identity and native timer ownership remain with Questie. Deferral is required because Questie registers the frame pair after queuing it. The bridge rejects missing scheduling support and restores its filtering if scheduling fails.
+
+The regression fixture now models timer registration, a captured callback, both startup orders, partial frame registration and scheduler failures. It reproduces alpha.2's failure under a bounded rejection contract and passes with the fix. This models the observed native constraint; it does not emulate Blizzard's secure runtime. The in-game alpha.3 reload check is still pending.
 
 ## Combat data
 

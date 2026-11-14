@@ -1,6 +1,6 @@
 local addonName, ns = ...
 
-ns.VERSION = "0.2.0-alpha.2"
+ns.VERSION = "0.2.0-alpha.3"
 ns.PRODUCT_NAME = "Quest Companion"
 ns.TARGET_INTERFACE = 16001
 ns.Models = ns.Models or {}
