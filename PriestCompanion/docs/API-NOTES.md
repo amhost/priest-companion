@@ -1,20 +1,20 @@
 # API evidence and implementation boundaries
 
-Research date: November 10, 2026. This document distinguishes inspected source from native runtime evidence. No actual Forever client was available in the build environment.
+Original API research: November 10, 2026. Questie integration update: November 14, 2026 (UTC). This document distinguishes inspected source from native runtime evidence. No actual Forever client was available in the build environment.
 
 ## Target declaration
 
-The current [Questie Forever manifest](https://github.com/Questie/Questie/blob/master/Questie_Forever.toc) and [Camelot manifest](https://github.com/Questie/Questie/blob/master/Questie_Camelot.toc) declare interface 16001. This is evidence of the current author's source declaration, not proof of any user's installed build. Priest Companion's normal TOC targets 16001 and reports a mismatch in chat if loaded elsewhere.
+The current [Questie Forever manifest](https://github.com/Questie/Questie/blob/master/Questie_Forever.toc) and [Camelot manifest](https://github.com/Questie/Questie/blob/master/Questie_Camelot.toc) declare interface 16001. This is evidence of the current author's source declaration, not proof of any user's installed build. Quest Companion's legacy-named TOC targets 16001 and reports a mismatch in chat if loaded elsewhere.
 
 ## Combat data
 
 Blizzard's [UI customization explanation](https://news.blizzard.com/en-gb/article/24244638/how-midnights-upcoming-game-changes-will-impact-combat-addons) and [combat addon explanation](https://news.blizzard.com/en-gb/article/24246290/combat-philosophy-and-addon-disarmament-in-midnight) describe the distinction between presenting protected combat values and interpreting them in custom logic. These articles concern the modern API model; exact Forever behavior still needs in-game validation.
 
-Core guards use the available `issecretvalue`, `issecrettable` and `canaccessvalue` functions before ordinary inspection. The Priest panel permits values to pass directly into supported StatusBar setters, wrapped with `pcall`; it does not compare protected health or mana. Unsupported display calls fall back to an explicit unavailable state. No combat log bypass or protected-value reconstruction is attempted.
+Core guards use the available `issecretvalue`, `issecrettable` and `canaccessvalue` functions before ordinary inspection. The Resources panel permits values to pass directly into supported StatusBar setters, wrapped with `pcall`; it does not compare protected health or resource values. Unsupported display calls fall back to an explicit unavailable state. No combat log bypass or protected-value reconstruction is attempted.
 
 ## Quests
 
-Inspected [Blizzard-generated QuestLog documentation](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/QuestLogDocumentation.lua). Functions used include `GetNumQuestLogEntries`, `GetInfo`, `GetQuestObjectives`, `IsComplete`, `GetNextWaypoint` and `GetQuestsOnMap`, under `C_QuestLog` when available. `GetNextWaypoint` may return nothing. A map passed to `GetQuestsOnMap` provides the coordinate context when a returned point omits its own map ID.
+Inspected [Blizzard-generated QuestLog documentation](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/QuestLogDocumentation.lua). Current quest-log reads use `GetNumQuestLogEntries`, `GetInfo`, `GetQuestObjectives` and `IsComplete` under `C_QuestLog` when available. Navigation now uses the guarded Questie adapter described in [QUESTIE-INTEGRATION.md](QUESTIE-INTEGRATION.md). The previous `GetNextWaypoint`/personal-waypoint fallback is no longer called: an unavailable bridge falls back to ordinary quest details without overwriting the player's personal point.
 
 The helper contains no borrowed world database, guessed quest locations or leveling route. Missing data is not interpreted as quest completion.
 

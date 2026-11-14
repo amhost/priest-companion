@@ -305,7 +305,8 @@ C_QuestLog={
     GetLogIndexForQuestID=function() return 2 end,
     AddQuestWatch=function() end,
 }
-C_Map={GetBestMapForUnit=function() return 12 end,SetUserWaypoint=function(point) Mock.waypoint=point end}
+C_Map={GetBestMapForUnit=function() return 12 end,SetUserWaypoint=function(point) Mock.waypoint=point end,
+    OpenWorldMap=function(id) Mock.mapID=id;WorldMapFrame:Show() end}
 C_SuperTrack={SetSuperTrackedUserWaypoint=function(value) Mock.superTracked=value end}
 UiMapPoint={CreateFromCoordinates=function(id,x,y) return {uiMapID=id,position={x=x,y=y}} end}
 COMBATLOG_XPGAIN_FIRSTPERSON="%s dies, you gain %d experience."

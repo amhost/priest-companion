@@ -1,37 +1,36 @@
-# Priest Companion 0.1.0-alpha.2
+# Quest Companion 0.2.0-alpha.1
 
-This UI alpha makes Priest Companion smaller and gives each gameplay panel independent transparency controls.
+The addon now has a class-neutral name and a direct Questie navigation path. This alpha builds on the compact appearance controls from 0.1.0-alpha.2.
 
-## Compact setup
+## Changes
 
-After updating, enter `/pc compact` outside combat. This applies 80% scale, 0% background, 85% content, hidden titles and a health/mana-only Priest panel. Leveling shows Priest and Quest Helper; Healing shows Priest and Dungeon preparation. Other panels remain accessible from `/pc`. Enter `/pc restorelayout` to undo the preset.
+- **Plain left-click a Questie tracker title to open its checkpoint map.** Our Quest Helper rows do the same without an extra Map-button click. Only the selected helper row expands its objectives. The permanent location disclaimer is removed.
+- **Hide / Next / All** operate on the clicked quest's existing supported Questie pins. Next chooses one nearest unfinished checkpoint, or a finisher when ready. All retains Questie's rendered locations and clustering. Other quests keep their normal settings. The temporary filter restores when the world map closes.
+- **Quest Companion** is the visible product name. Use `/qc` or `/questcompanion`; the old commands still work. Resources replace the Priest panel and follow the character's current resource. The chosen-spell editor is removed; its saved data is retained. No rotation management is added.
+- **Existing appearance controls stay:** independent 0-100% background/content opacity, 50-150% scale, hidden titles, separate Healing/Leveling layouts and Compact/Undo. Resources are optional on new profiles; Compact preserves their existing visibility.
+- **Upgrade handling:** existing Priest-panel placement, opacity and visibility migrate to a compact Resources panel without deleting old layout keys or spell data. Existing Resources settings take priority.
 
-For individual controls, enter `/pc appearance priest` or choose a panel's **Appearance** button in `/pc`:
+## Use the navigation controls
 
-- **Background opacity:** 0-100%, including the border and title strip.
-- **Content opacity:** 0-100%, separately controlling bars, text and interactive content.
-- **Scale:** 50-150%, keeping the panel centered on its current position subject to screen clamping.
-- **Hide title when locked:** removes the title and close button.
-- **Priest bars only:** hides the reference editor and restores its prior full size when switched off.
+Enter `/qc locations next`, then plain left-click a Questie title. Choose `/qc locations all` or `/qc locations hide` to change the selected quest's mode. `/qc locations off` restores normal Questie behavior; `/qc locations on` re-enables the saved mode. These controls also appear in `/qc show quests`. After configuring, `/qc hide quests` leaves the tracker bridge active.
 
-Each slider moves in 1% steps. Values are saved separately for Healing and Leveling. Configuration windows stay readable. `/pc unlock` temporarily reveals drag handles and faint content, including when saved opacity is zero; `/pc lock` restores the chosen appearance. Existing settings, notes, goals, spell references and kill history are retained. Installing the update does not automatically replace an existing layout with Compact.
+The adapter checks the inspected Questie 12.8/12.9 interface family and required methods at runtime. Source inspection covered 12.8.0 and 12.9.0; it is not evidence of live compatibility with every patch or another addon's modifications. Unsupported shapes, missing pins, combat/controller input and modified clicks retain Questie's normal handling. Our own rows fall back to quest details without replacing a personal waypoint. Next is coordinate proximity, not a route optimizer.
 
-## Install or update
+## Update
 
-Download `PriestCompanion-0.1.0-alpha.2.zip`. Close WoW, move the previous `PriestCompanion` folder outside `Interface\AddOns` as a backup, and copy the new archive's `PriestCompanion` folder into the Forever client's `Interface\AddOns`. Keep the `WTF` folder and saved settings. No addon manager is required.
+1. Download **QuestCompanion-0.2.0-alpha.1.zip**, the installable asset.
+2. Exit WoW. Move the existing `PriestCompanion` folder outside the Forever client's `Interface\AddOns` directory as a backup.
+3. Extract the new archive and put its **PriestCompanion** folder in `Interface\AddOns`. Keep the existing `WTF` folder and saved settings.
+4. At character selection, open **AddOns** and enable **Quest Companion**. Enter the world and type `/qc`.
 
-The package also includes `docs/UI-CONTROLS.md` and a manual download guide for the ten suggested companion addons. Those third-party addons are not bundled. Priest Companion's appearance controls apply to its own panels; nameplate styling remains in the nameplate addon's settings.
+The legacy folder, TOC filename and `PriestCompanionDB` save key are deliberate upgrade compatibility details. Do not rename the folder or install both old and new copies. All recommended companion addons are separate; no third-party addon code or database is bundled.
 
-## Validation and scope
+## Validation and next session
 
-**884 assertions passed** in offline Lua 5.4 with bounded WoW UI/API mocks, including zero-opacity callbacks, hidden-panel recovery, scale/position preservation, temporary edit-header sizing, layout undo, focus handling and combat guards. Packaging checks validate manifest paths, XML, ZIP integrity and checksums.
+**1,687 offline assertions passed** with 12 addon Lua files parsed. The checks cover the actual helper row actions, mode controls, title-wrapper reuse, strict selected-quest filtering, map-close restoration, disabling, redraws, combat resumption, resource switching and additive layout migration. See [VALIDATION.md](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.1/docs/VALIDATION.md) for exact executed results.
 
-**Native WoW Forever testing is still pending.** The declared target is interface 16001. Offline checks do not establish live rendering, mouse hit testing, secure execution, saved-file loading, locale behavior or coexistence with other addons.
+**The new bridge has not been tested inside WoW.** Native rendering, taint/secure execution, combat coexistence and cold-start saved-file loading remain pending. Use [FRESH-LOGIN-CHECKLIST.md](https://github.com/amhost/priest-companion/blob/v0.2.0-alpha.1/docs/FRESH-LOGIN-CHECKLIST.md), starting with checks 1-6. If needed, `/qc locations off` disables only the bridge; disabling Quest Companion from character selection is the full recovery step.
 
-This release is a UI update to the original alpha. It does **not** include the separate dungeon quest prototype in [PR #1](https://github.com/amhost/priest-companion/pull/1). The released quest helper still reads the current quest log and available client-provided map guidance; it does not have a complete database of missing dungeon quests.
+This release does not include the separate incomplete dungeon checklist prototype in [PR #1](https://github.com/amhost/priest-companion/pull/1). For now, use the installed DungeonJournal for dungeon quests and Questie for locations. The prototype's 18 entries do not yet justify an Available/ready-before-run claim.
 
-The original feature panels and optional NPC quest auto-accept remain available. Quest auto-accept starts off, supports Shift bypass and does not choose gossip, turn in quests or select rewards. Automatic kill counts cover named XP-credit messages; manual counts remain separate.
-
-Useful feedback: client version/build, panel, reproduction steps, expected and actual appearance, and whether combat was active. `/pc diagnostics` creates a report without character names or personal lists.
-
-Free, original source, MIT licensed. English interface text; XP-message parsing uses the client's available localized templates, with native-locale verification still pending.
+Bug reports: client build, Questie and QuestieDB versions, exact click sequence, expected/actual result, whether combat was active, and `/qc diagnostics`. The report omits character names and personal lists. Source is MIT licensed; no telemetry or external updater.

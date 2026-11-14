@@ -1,5 +1,5 @@
 name: Alpha bug report
-description: Report a reproducible Priest Companion issue.
+description: Report a reproducible Quest Companion issue.
 title: "[Bug] "
 body:
   - type: markdown
@@ -15,14 +15,14 @@ body:
     id: diagnostic
     attributes:
       label: Client build and diagnostics
-      description: "Run /pc diagnostics and paste the report after reviewing it."
+      description: "Run /qc diagnostics and paste the report after reviewing it."
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Reproduction steps
-      description: "Name the panel, actions, and whether combat was active."
+      description: "Name the panel or Questie tracker, click/modifier sequence, location mode, and whether combat was active."
     validations:
       required: true
   - type: textarea

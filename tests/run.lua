@@ -32,41 +32,42 @@ for key,err in pairs(ns.errors) do error("Module initialization "..key..": "..er
 T.ok(ns.ready,"addon initializes in bounded mock")
 T.eq(ns.db.layout,"Leveling","default layout")
 T.eq(ns.db.locked,true,"default layout locked")
-for _,id in ipairs({"priest","quests","preparation","references","goals","kills","appearance","settings"}) do
+for _,id in ipairs({"resources","quests","preparation","references","goals","kills","appearance","settings"}) do
     local alternate=id=="preparation" and "prep" or (id=="references" and "keys" or id)
     T.ok(ns.modules[id] or ns.modules[alternate],"requested module present: "..id)
 end
 
-for _,file in ipairs({"goals_cases.lua","quest_kill_cases.lua","gameplay_cases.lua","appearance_cases.lua"}) do
+for _,file in ipairs({"goals_cases.lua","quest_kill_cases.lua","gameplay_cases.lua","appearance_cases.lua",
+    "migration_cases.lua","quest_navigation_cases.lua","questie_bridge_cases.lua"}) do
     local cases=assert(loadfile(root.."/tests/"..file))()
     cases(T,ns,Mock)
     print("PASS: "..file)
 end
 
 -- Movement survives a save/load cycle at non-unit scale.
-local frame=ns.frames.priest
-local settings=ns.PanelSettings("priest")
+local frame=ns.frames.resources
+local settings=ns.PanelSettings("resources")
 settings.scale=1.25
-ns.ApplyPanel("priest")
+ns.ApplyPanel("resources")
 frame:ClearAllPoints();frame:SetPoint("CENTER",UIParent,"CENTER",127,-63)
 frame:SetSize(360,340)
-ns.SavePlacement("priest")
+ns.SavePlacement("resources")
 T.near(settings.x,127,"scaled x anchor round-trip")
 T.near(settings.y,-63,"scaled y anchor round-trip")
-ns.ApplyPanel("priest")
-ns.SavePlacement("priest")
+ns.ApplyPanel("resources")
+ns.SavePlacement("resources")
 T.near(settings.x,127,"reapplication preserves x")
 T.eq(settings.width,360,"width persisted")
 T.eq(settings.height,340,"height persisted")
 
 ns.ApplyLayout("Healing")
 T.eq(ns.db.layout,"Healing","switch to healing")
-ns.PanelSettings("priest").x=-45
-ns.PanelSettings("priest").y=82
-ns.ApplyPanel("priest")
+ns.PanelSettings("resources").x=-45
+ns.PanelSettings("resources").y=82
+ns.ApplyPanel("resources")
 ns.ApplyLayout("Leveling")
-T.near(ns.PanelSettings("priest").x,127,"separate layout position retained")
-T.near(ns.PanelSettings("priest").y,-63,"separate layout y retained")
+T.near(ns.PanelSettings("resources").x,127,"separate layout position retained")
+T.near(ns.PanelSettings("resources").y,-63,"separate layout y retained")
 
 Mock.combat=true
 T.eq(ns.ApplyLayout("Healing"),false,"combat layout deferred")
@@ -103,8 +104,8 @@ ns.db.modules.prep.checklist=checklist
 -- Regression: locking mid-drag saves the final position before stopping.
 frame:ClearAllPoints();frame:SetPoint("CENTER",UIParent,"CENTER",71,29)
 ns.SetLocked(true)
-T.near(ns.PanelSettings("priest").x,71,"locking records drag position")
-T.near(ns.PanelSettings("priest").y,29,"locking records drag height")
+T.near(ns.PanelSettings("resources").x,71,"locking records drag position")
+T.near(ns.PanelSettings("resources").y,29,"locking records drag height")
 
 -- Actual event handler integration: complete provenance remains separate.
 local stats=ns.db.modules.kills.lifetime
@@ -137,9 +138,9 @@ Mock.secretTables=nil
 
 -- Secret player resources may go to display setters but never into saved data.
 Mock.health=Mock.Secret()
-ns.SetPanelVisible("priest",true)
+ns.SetPanelVisible("resources",true)
 Mock.Fire("UNIT_HEALTH","player")
-T.eq(ns.modules.priest.health:GetValue(),Mock.health,"secret resource passed only to display")
+T.eq(ns.modules.resources.health:GetValue(),Mock.health,"secret resource passed only to display")
 local function containsSecret(value,seen)
     if not ns.Readable(value) then return true end
     if type(value)~="table" then return false end

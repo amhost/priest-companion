@@ -25,7 +25,7 @@ end
 
 local function normalizeSelection(id)
     if not ns.Readable(id) or type(id) ~= "string" then return "all" end
-    local aliases = {references="keys", preparation="prep"}
+    local aliases = {references="keys", preparation="prep", priest="resources"}
     id = aliases[id] or id
     return ns.IsCustomizablePanel(id) and id or "all"
 end
@@ -114,18 +114,13 @@ ns.RegisterModule({
                 function(value) change("scale", value / 100) end),
         }
         UI.Tooltip(self.sliders.opacity.slider, "0% removes panel backgrounds. Bars and text keep their separate content opacity. Changes apply to the current layout.")
-        UI.Tooltip(self.sliders.contentOpacity.slider, "Controls bars, text and other panel content. At 0%, content is invisible; reopen Appearance with /pc appearance to restore it.")
+        UI.Tooltip(self.sliders.contentOpacity.slider, "Controls bars, text and other panel content. At 0%, content is invisible; reopen Appearance with /qc appearance to restore it.")
         UI.Tooltip(self.sliders.scale.slider, "50% to 150% in 1% steps. Scale changes the whole panel, including its text. Mixed means the selected panels have different values.")
 
         self.hideTitle = UI.Check(content, "Hide title when locked", 0, 210, function(value)
             change("hideHeader", value)
         end)
         UI.Tooltip(self.hideTitle, "Hide the selected panels' titles while locked. Unlock panels to reveal their titles and drag handles. A mixed selection becomes checked for every selected panel on the first click.")
-        self.barsOnly = UI.Check(content, "Priest: health and mana bars only", 0, 244, function(value)
-            ns.SetPriestBarsOnly(value)
-            ns.Refresh("appearance")
-        end)
-        UI.Tooltip(self.barsOnly, "Show only the Priest panel's health and mana bars in the current layout. Your saved spell references remain available when this is off.")
 
         self.compact = UI.Button(content, "Compact layout", 0, 280, 150, 30, function()
             ns.ApplyCompactLayout()
@@ -186,7 +181,7 @@ ns.RegisterModule({
                 slider:SetWidth(width)
                 y = y + math.max(48, slider:GetHeight()) + 12
             end
-            for _, check in ipairs({self.hideTitle, self.barsOnly}) do
+            for _, check in ipairs({self.hideTitle}) do
                 check.label:SetWidth(width - 30)
                 place(check, content, 0, y)
                 y = y + math.max(24, textHeight(check.label) + 6) + 12
@@ -244,8 +239,6 @@ ns.RegisterModule({
         self.hideTitle:SetChecked(hidden and not mixed)
         self.hideTitle.label:SetText("Hide title when locked" .. (mixed and " (mixed)" or ""))
         self.hideTitle:SetEnabled(not combat)
-        self.barsOnly:SetChecked(ns.PanelSettings("priest").barsOnly == true)
-        self.barsOnly:SetEnabled(not combat)
         self.compact:SetEnabled(not combat)
         self.undo:SetEnabled(not combat and ns.db.previousLayout ~= nil)
         self.smaller:SetEnabled(db.fontDelta > -1)

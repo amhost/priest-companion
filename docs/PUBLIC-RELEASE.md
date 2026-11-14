@@ -1,33 +1,18 @@
 # Public alpha release kit
 
-The public name is **Priest Companion** and this version is **0.1.0-alpha.2**. The public source repository is [amhost/priest-companion](https://github.com/amhost/priest-companion). Published packages belong on its [Releases page](https://github.com/amhost/priest-companion/releases). This UI release is separate from the unmerged dungeon quest prototype.
+Visible name: **Quest Companion**. Version: **0.2.0-alpha.1**. Repository: [amhost/priest-companion](https://github.com/amhost/priest-companion). The repository and installed folder retain their previous identity for continuity; user-facing titles and archive names are class-neutral.
 
-## Prepared materials
+## Release artifacts
 
-- Installable addon ZIP with the correct top-level folder.
-- Complete source ZIP, including tests and repeatable package tooling.
-- README, changelog, MIT license, API notes and validation scope.
-- `RELEASE-NOTES.md`, ready to paste as the public prerelease description.
-- GitHub issue form for bug reports.
-- SHA-256 checksum file for both archives.
+- `QuestCompanion-0.2.0-alpha.1.zip`: installable folder `PriestCompanion/`, including its matching TOC, original source, license and documentation.
+- `QuestCompanion-0.2.0-alpha.1-source.zip`: complete source, tests, build tools and documentation under `quest-companion/`.
+- `SHA256SUMS.txt`: hashes for both ZIPs.
+- `RELEASE-NOTES.md`: the public prerelease description.
 
-The alpha description explicitly says that native Forever testing is pending. Do not present the offline test results as game compatibility. When in-game results arrive, update the validation record with the exact client build and observed outcomes.
+Build from the reviewed source root with `python3 tools/build.py`. Run `python3 tools/check.py` before packaging. Publish tag `v0.2.0-alpha.1` on the exact reviewed commit, with GitHub's prerelease flag enabled. Attach the explicit installable ZIP in addition to the source archive. Compare uploaded sizes and SHA-256 digests before publishing.
 
-## Release destination: GitHub Releases
+This release builds on the separate UI branch. The incomplete dungeon prototype remains outside the package. The new bridge remains an alpha until the [fresh-login checklist](FRESH-LOGIN-CHECKLIST.md) has native results.
 
-GitHub supports release notes, downloadable attached files and an explicit prerelease designation. Publish the alpha under `amhost/priest-companion`, with the installable archive attached separately from GitHub's generated source archives.
+## Feedback
 
-The [current GitHub release instructions](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) describe this workflow:
-
-1. Open the repository's main page and choose **Releases > Draft a new release**.
-2. Under **Choose a tag**, create `v0.1.0-alpha.2` on the exact reviewed UI commit containing this source, even if the branch is still awaiting native-client feedback.
-3. Set the title to **Priest Companion 0.1.0-alpha.2**.
-4. Paste the complete contents of `RELEASE-NOTES.md`.
-5. Attach `PriestCompanion-0.1.0-alpha.2.zip`, `PriestCompanion-0.1.0-alpha.2-source.zip` and `SHA256SUMS.txt`.
-6. Select **Set as a pre-release**. Review the files and description before publishing.
-
-No download-manager installation is required for someone using the attached addon ZIP. An addon directory such as Wago can be an additional discovery channel once its project identity and supported game-version options have been selected.
-
-## Initial feedback to collect
-
-Ask testers for the exact client version/build, the panel involved, short reproduction steps, expected/actual behavior, whether combat was active, and the `/pc diagnostics` report. A real in-game screenshot is useful after removing names or chat the tester does not want public. Do not use a mock image as proof of native rendering.
+Collect the exact client build, Questie and QuestieDB versions, panel or tracker action, reproduction steps, expected/actual result, combat state and `/qc diagnostics`. Screenshots should show actual game behavior and omit private names/chat the tester does not want public. A mock or offline pass is not evidence of native rendering or secure execution.

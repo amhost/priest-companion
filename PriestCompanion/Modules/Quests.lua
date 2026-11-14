@@ -220,7 +220,7 @@ function Model.ReadLog(api)
         return quests, #quests .. " logged quests. Some entries are unavailable."
     end
     if #quests == 0 then return quests, "No visible quests in your current log." end
-    return quests, #quests .. " logged quests. Select one below."
+    return quests, #quests .. " logged quests"
 end
 
 local function selectedQuest(self)
@@ -251,47 +251,29 @@ local function openDetails(self)
     ns.UI.MakeCopyBox(quest.title, Model.ObjectiveText(quest))
 end
 
-local function findLiveWaypoint(id)
-    local api = questAPI()
-    if not api then return nil end
-    local mapID, x, y = ns.Call(api.GetNextWaypoint, id)
-    local point = Model.Waypoint(mapID, x, y)
-    if point then return point end
-    if readableTable(C_Map) then
-        local currentMap = positiveID(ns.Call(C_Map.GetBestMapForUnit, "player"))
-        if currentMap then
-            return Model.FindWaypoint(ns.Call(api.GetQuestsOnMap, currentMap), id, currentMap)
-        end
-    end
-end
-
 local function openMap(self)
     if ns.IsCombat() then ns.Notify("Open quest navigation after combat."); return end
     local quest = selectedQuest(self)
     if not quest then ns.Notify("Select a logged quest first."); return end
-    local point = findLiveWaypoint(quest.id)
-    if not point then
-        ns.Notify("This quest has no readable client-provided location. Open Details for its instructions.")
-        return
+    local bridge = ns.QuestieBridge
+    if bridge and bridge.IsEnabled and bridge.IsEnabled() then
+        if bridge.Navigate(quest.id) then return true end
     end
-    ensureMapLoaded()
-    local placed = false
-    if readableTable(C_Map) and type(C_Map.SetUserWaypoint) == "function"
-        and readableTable(UiMapPoint) and type(UiMapPoint.CreateFromCoordinates) == "function" then
-        local mapPoint = ns.Call(UiMapPoint.CreateFromCoordinates, point.mapID, point.x, point.y)
-        if readableTable(mapPoint) then
-            local ok = pcall(C_Map.SetUserWaypoint, mapPoint)
-            placed = ok
-            if placed and readableTable(C_SuperTrack) then ns.Call(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
-        end
-    end
-    if WorldMapFrame and type(WorldMapFrame.SetMapID) == "function" then
-        ns.Call(WorldMapFrame.SetMapID, WorldMapFrame, point.mapID)
-        ns.Call(WorldMapFrame.Show, WorldMapFrame)
-    elseif not placed then
-        ns.Notify("Map location: " .. string.format("%.1f, %.1f", point.x * 100, point.y * 100)
-            .. " (map " .. point.mapID .. "). Map controls are unavailable.")
-    end
+    -- Unsupported or unavailable Questie locations keep the ordinary details
+    -- path. Do not overwrite the player's personal waypoint or invent a pin.
+    openDetails(self)
+    return false
+end
+
+local function setLocationMode(mode)
+    local bridge = ns.QuestieBridge
+    if not bridge then return false end
+    if ns.IsCombat() then ns.Notify("Change quest locations after combat."); return false end
+    if mode == "off" then return bridge.SetEnabled(false) end
+    if mode == "on" then return bridge.SetEnabled(true) end
+    if mode ~= "hide" and mode ~= "next" and mode ~= "all" then return false end
+    if bridge.SetMode(mode) == false then return false end
+    return bridge.SetEnabled(true)
 end
 
 local function updateWidths(self)
@@ -311,34 +293,48 @@ end
 
 local Module = {
     id = "quests", title = "Quest Helper",
-    description = "Current quest objectives and the map locations supplied by your client.",
-    width = 400, height = 430, minWidth = 320, minHeight = 300,
+    description = "Click a quest to navigate. Questie title clicks and selected-quest location controls.",
+    width = 380, height = 370, minWidth = 320, minHeight = 300,
     defaultEnabled = { Healing = false, Leveling = true },
 }
 
 function Module:Create()
     self.rows = {}
     self.summary = ns.UI.Text(self.body, "Loading quest log...", 8, 6, 12, 370)
-    self.autoAccept = ns.UI.Check(self.body, "Auto-accept NPC quests", 6, 32, function(checked)
+    self.locationLabel = ns.UI.Text(self.body, "Locations", 8, 34, 11, 68)
+    self.locationButtons = {}
+    for index, mode in ipairs({"hide", "next", "all"}) do
+        local value = mode
+        self.locationButtons[mode] = ns.UI.Button(self.body, mode, 78 + (index-1)*68, 28, 62, 24, function()
+            setLocationMode(value)
+            ns.Refresh("quests")
+        end)
+    end
+    ns.UI.Tooltip(self.locationButtons.hide, "Hide the selected quest's supported Questie locations while its focused map view is open. Other quests keep their settings.")
+    ns.UI.Tooltip(self.locationButtons.next, "Show one nearest supported unfinished checkpoint for the quest you click, or a finisher when ready to turn in. This is a map location, not a calculated walking route.")
+    ns.UI.Tooltip(self.locationButtons.all, "Show all supported unfinished Questie map locations for the quest you click. Questie's existing clustering and visibility settings still apply.")
+    self.trackerClicks = ns.UI.Check(self.body, "Questie title clicks", 6, 60, function(checked)
+        if ns.QuestieBridge then ns.QuestieBridge.SetEnabled(checked == true) end
+        ns.Refresh("quests")
+    end)
+    ns.UI.Tooltip(self.trackerClicks, function()
+        local status = ns.QuestieBridge and ns.QuestieBridge.Status() or "Questie integration unavailable"
+        return "Plain left-click a supported Questie tracker title to open its current map location. Other clicks retain Questie's behavior.\n" .. status
+    end)
+    self.autoAccept = ns.UI.Check(self.body, "Auto-accept NPC quests", 6, 90, function(checked)
         settings().autoAccept = checked == true
         autoAcceptState = {}
         ns.Refresh("quests")
     end)
     self.autoAcceptNote = ns.UI.Text(self.body, "Hold Shift when opening an offer to read it.", 8, 58, 10, 370, { 0.68, 0.73, 0.8 })
     ns.UI.Tooltip(self.autoAccept, "Off by default. Accepts an ordinary NPC quest when its offer opens, outside combat. Hold Shift while opening it to keep it manual. Shared/unknown givers, special offers, PvP confirmations, turn-ins, rewards and gossip choices stay manual. This setting applies in both layouts, even when this panel is hidden.")
-    self.scroll, self.content = ns.UI.ScrollArea(self.body, 90, 66)
+    self.scroll, self.content = ns.UI.ScrollArea(self.body, 130, 38)
     self.details = ns.UI.Button(self.body, "Details", 8, 0, 90, 24, function() openDetails(self) end)
-    self.map = ns.UI.Button(self.body, "Map", 104, 0, 90, 24, function() openMap(self) end)
-    self.refresh = ns.UI.Button(self.body, "Refresh", 200, 0, 90, 24, function() ns.Refresh("quests") end)
-    for index, button in ipairs({ self.details, self.map, self.refresh }) do
+    self.refresh = ns.UI.Button(self.body, "Refresh", 104, 0, 90, 24, function() ns.Refresh("quests") end)
+    for index, button in ipairs({ self.details, self.refresh }) do
         button:ClearAllPoints()
-        button:SetPoint("BOTTOMLEFT", self.body, "BOTTOMLEFT", 8 + (index - 1) * 96, 31)
+        button:SetPoint("BOTTOMLEFT", self.body, "BOTTOMLEFT", 8 + (index - 1) * 96, 6)
     end
-    self.note = ns.UI.Text(self.body, "Locations come from the game; some quests have none.", 8, 0, 10, 370, { 0.68, 0.73, 0.8 })
-    self.note:ClearAllPoints()
-    self.note:SetPoint("BOTTOMLEFT", self.body, "BOTTOMLEFT", 8, 6)
-    self.note:SetPoint("BOTTOMRIGHT", self.body, "BOTTOMRIGHT", -8, 6)
-    ns.UI.Tooltip(self.map, "Show this quest's next location from the game. This replaces your personal map waypoint when supported.")
     self.body:HookScript("OnSizeChanged", function() ns.Refresh("quests") end)
 end
 
@@ -354,31 +350,54 @@ function Module:Refresh()
     local capable = autoAcceptEventsAvailable and Model.AutoAcceptCapable(autoAcceptAPI())
     self.autoAccept:SetChecked(enabled)
     if capable or enabled then self.autoAccept:Enable() else self.autoAccept:Disable() end
-    self.autoAcceptNote:SetText(not capable and "Unavailable on this client; use the game's Accept button."
-        or (enabled and autoAcceptNotes[autoAcceptState.status]) or "Hold Shift when opening an offer to read it.")
+    local acceptanceNote = not capable and "Unavailable on this client; use the game's Accept button."
+        or (enabled and autoAcceptNotes[autoAcceptState.status]) or ""
+    self.autoAcceptNote:SetText(acceptanceNote)
+    self.autoAcceptNote:SetShown(acceptanceNote ~= "")
     updateWidths(self)
-    local checkY = ns.Number(self.summary:GetStringHeight(), 25) + 14
+    local modeY = ns.Number(self.summary:GetStringHeight(), 25) + 14
+    local bridge = ns.QuestieBridge
+    local active = bridge and bridge.IsEnabled()
+    local selectedMode = bridge and bridge.GetMode() or "next"
+    self.locationLabel:ClearAllPoints()
+    self.locationLabel:SetPoint("TOPLEFT", self.body, "TOPLEFT", 8, -(modeY + 6))
+    for index, mode in ipairs({"hide", "next", "all"}) do
+        local button = self.locationButtons[mode]
+        local label = mode:sub(1,1):upper() .. mode:sub(2)
+        button:SetText((active and mode == selectedMode and "> " or "") .. label)
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT", self.body, "TOPLEFT", 78 + (index-1)*68, -modeY)
+        button:SetEnabled(not ns.IsCombat() and bridge ~= nil)
+    end
+    self.trackerClicks:ClearAllPoints()
+    self.trackerClicks:SetPoint("TOPLEFT", self.body, "TOPLEFT", 6, -(modeY + 32))
+    self.trackerClicks:SetChecked(active == true)
+    self.trackerClicks:SetEnabled(not ns.IsCombat() and bridge ~= nil)
+    local checkY = modeY + 32 + math.max(24, ns.Number(self.trackerClicks.label:GetStringHeight(), 15) + 8)
     self.autoAccept:ClearAllPoints()
     self.autoAccept:SetPoint("TOPLEFT", self.body, "TOPLEFT", 6, -checkY)
     local noteY = checkY + math.max(24, ns.Number(self.autoAccept.label:GetStringHeight(), 15) + 8)
     self.autoAcceptNote:ClearAllPoints()
     self.autoAcceptNote:SetPoint("TOPLEFT", self.body, "TOPLEFT", 8, -noteY)
-    local scrollTop = noteY + ns.Number(self.autoAcceptNote:GetStringHeight(), 16) + 12
+    local scrollTop = noteY + (acceptanceNote ~= "" and ns.Number(self.autoAcceptNote:GetStringHeight(), 16) + 8 or 0) + 8
     self.scroll:ClearAllPoints()
     self.scroll:SetPoint("TOPLEFT", self.body, "TOPLEFT", 0, -scrollTop)
-    self.scroll:SetPoint("BOTTOMRIGHT", self.body, "BOTTOMRIGHT", -24, 66)
+    self.scroll:SetPoint("BOTTOMRIGHT", self.body, "BOTTOMRIGHT", -24, 38)
     local width = math.max(220, ns.Number(self.scroll:GetWidth(), 350) - 20)
     local y = 0
     for index, quest in ipairs(quests) do
         local row = self.rows[index]
         if not row then
             row = {}
-            row.button = ns.UI.Button(self.content, "", 6, 0, width - 12, 26, function()
+            row.button = ns.UI.Button(self.content, "", 6, 0, width - 12, 26, function(_, button)
                 if row.questID then
                     settings().selectedQuestID = row.questID
                     ns.Refresh("quests")
+                    if button == "RightButton" or ns.Call(IsShiftKeyDown) == true then openDetails(self)
+                    else openMap(self) end
                 end
             end)
+            row.button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             row.text = ns.UI.Text(self.content, "", 8, 0, 11, width - 16)
             if row.button.label then
                 row.button.label:SetWordWrap(false)
@@ -396,24 +415,35 @@ function Module:Refresh()
         local suffix = quest.complete == true and " [Done]" or ""
         row.button:SetText(prefix .. quest.title .. suffix)
         row.button:Show()
-        row.tooltip = quest.title .. "\n" .. Model.ObjectiveText(quest)
+        row.tooltip = quest.title .. "\n" .. Model.ObjectiveText(quest) .. "\nClick: map location. Shift-click: details."
         row.text:ClearAllPoints()
         row.text:SetPoint("TOPLEFT", self.content, "TOPLEFT", 8, -(y + 30))
         row.text:SetWidth(width - 16)
         row.text:SetText(Model.ObjectiveText(quest))
-        row.text:Show()
-        local textHeight = ns.Number(row.text:GetStringHeight(), 24)
-        y = y + 40 + math.max(20, textHeight)
+        row.text:SetShown(quest.id == selected)
+        local textHeight = quest.id == selected and ns.Number(row.text:GetStringHeight(), 24) or 0
+        y = y + (quest.id == selected and 40 + math.max(20, textHeight) or 32)
     end
     for index = #quests + 1, #self.rows do
         self.rows[index].button:Hide()
         self.rows[index].text:Hide()
     end
     self.content:SetHeight(math.max(1, y))
-    if selected then self.details:Enable(); self.map:Enable() else self.details:Disable(); self.map:Disable() end
+    if selected then self.details:Enable() else self.details:Disable() end
 end
 
 ns.RegisterModule(Module)
+ns.RegisterCommand("locations", function(rest)
+    local mode = ns.Text(rest, ""):lower()
+    if mode ~= "hide" and mode ~= "next" and mode ~= "all" and mode ~= "off" and mode ~= "on" then
+        ns.Notify("Use /qc locations hide, next, all, off or on.")
+    elseif not ns.QuestieBridge then
+        ns.Notify("Questie integration is unavailable.")
+    else
+        setLocationMode(mode)
+        ns.Refresh("quests")
+    end
+end)
 local detailEvent = ns.On("QUEST_DETAIL", function(event, questStartItemID)
     if not ns.ready or not autoAcceptEventsAvailable then return end
     Model.TryAutoAccept(autoAcceptState, settings().autoAccept, autoAcceptAPI(), event, questStartItemID)
