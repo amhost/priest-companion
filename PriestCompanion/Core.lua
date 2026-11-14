@@ -1,6 +1,6 @@
 local addonName, ns = ...
 
-ns.VERSION = "0.2.0-alpha.1"
+ns.VERSION = "0.2.0-alpha.2"
 ns.PRODUCT_NAME = "Quest Companion"
 ns.TARGET_INTERFACE = 16001
 ns.Models = ns.Models or {}
@@ -61,7 +61,7 @@ end
 function ns.IsCombat() return ns.Call(InCombatLockdown) == true end
 
 function ns.Notify(text)
-    local message = "|cffc4b5fdQuest Companion:|r " .. ns.Text(text, "")
+    local message = "|cffffd100Quest Companion:|r " .. ns.Text(text, "")
     if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
         DEFAULT_CHAT_FRAME:AddMessage(message)
     elseif print then print(message) end
@@ -167,6 +167,7 @@ end
 local placements = {
     resources = { "TOPLEFT", 24, -80 },
     quests = { "TOPRIGHT", -32, -80 },
+    guide = { "RIGHT", -60, 0 },
     preparation = { "LEFT", 24, 0 },
     prep = { "LEFT", 24, 0 },
     references = { "BOTTOM", 0, 60 },
@@ -175,6 +176,7 @@ local placements = {
     kills = { "BOTTOMLEFT", 24, 70 },
     appearance = { "CENTER", 50, 30 },
     settings = { "CENTER", 0, 0 },
+    quick = { "TOPRIGHT", -180, -160 },
 }
 local validPoints = { TOPLEFT=true, TOP=true, TOPRIGHT=true, LEFT=true, CENTER=true,
     RIGHT=true, BOTTOMLEFT=true, BOTTOM=true, BOTTOMRIGHT=true }
@@ -201,7 +203,8 @@ function ns.PanelSettings(id, layout)
     local value = ns.Defaults(ns.db.layouts[layout][id], {
         point=default[1], relativePoint=default[1], x=default[2], y=default[3],
         width=module.width or 320, height=module.height or 280,
-        scale=ns.IsCustomizablePanel(id) and 0.85 or 1, opacity=0.94, shown=enabled,
+        scale=ns.IsCustomizablePanel(id) and 0.85 or 1,
+        opacity=ns.IsCustomizablePanel(id) and (module.defaultOpacity or 0) or 0.94, shown=enabled,
         contentOpacity=1, hideHeader=false, barsOnly=false,
     })
     local minWidth, minHeight = ns.PanelMinimum(id, value)
@@ -402,6 +405,9 @@ function ns.Diagnostics()
     }
     if ns.QuestieBridge and ns.QuestieBridge.Status then
         lines[#lines + 1] = "  " .. ns.Text(ns.Call(ns.QuestieBridge.Status), "Questie bridge unavailable")
+    end
+    if ns.GuideWaypoints and ns.GuideWaypoints.Status then
+        lines[#lines + 1] = "  " .. ns.Text(ns.Call(ns.GuideWaypoints.Status), "Guide markers unavailable")
     end
     local errorKeys = {}
     for key in pairs(ns.errors) do errorKeys[#errorKeys + 1] = key end

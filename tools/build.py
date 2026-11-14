@@ -17,6 +17,9 @@ assert "## Interface: 16001" in manifest
 required_docs = ["README.md", "LICENSE", "CHANGELOG.md", "RELEASE-NOTES.md"]
 for name in required_docs:
     assert (ROOT / name).is_file(), name
+for name in ("LEVELING-GUIDE.md", "DEATHKNELL-SOURCES.md", "QUESTIE-INTEGRATION.md",
+             "UI-CONTROLS.md", "FRESH-LOGIN-CHECKLIST.md", "VALIDATION.md"):
+    assert (ROOT / "docs" / name).is_file(), name
 
 # The installable folder carries its own instructions and license.
 for name in required_docs:
@@ -44,6 +47,11 @@ assert len(entries) == len(set(entries)), "Duplicate manifest entry"
 assert "Core.lua" == entries[0]
 assert entries.index("UI.lua") < entries.index("Modules/Resources.lua")
 assert entries.index("QuestieBridge.lua") < entries.index("Modules/Quests.lua")
+assert entries.index("QuestieBridge.lua") < entries.index("GuideWaypoints.lua")
+assert entries.index("GuideData.lua") < entries.index("GuideModel.lua") < entries.index("Modules/Guide.lua")
+assert entries.index("GuideWaypoints.lua") < entries.index("Modules/Guide.lua")
+assert entries.index("Modules/Quests.lua") < entries.index("Modules/QuickMenu.lua")
+assert entries.index("Modules/Guide.lua") < entries.index("Modules/QuickMenu.lua")
 assert not (ADDON / "Modules" / "Priest.lua").exists(), "Remove the obsolete spell editor before packaging"
 
 OUTPUT.mkdir(exist_ok=True)

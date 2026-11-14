@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0-alpha.2
+
+- Added exact Questie 12.6.5 support through its LibStub map libraries, retaining version/shape guards for the 12.8/12.9 family. Provider failures now have visible reasons.
+- Added a movable minimap map icon and compact menu for Guide, Quest Helper, Settings, locking and Questie location modes. Commands remain optional.
+- Replaced purple panel styling with game font paths/shadows, gold/white tracker actions and stock controls. Fresh gameplay panels have transparent backgrounds; existing saved opacity remains unchanged.
+- Added the supplied Deathknell 1-6 route as 33 structured actions from 15 source steps, with class-aware Priest/Warlock scrolls and explicit source/verification notes.
+- Added Back, Done, Skip, Undo, Resume and All steps. Readable quest evidence is distinct from manual checklist marks; travel, training and partial interactions remain manual.
+- Added Current / Route / Hide controls for up to 24 owned numbered world-map/minimap guide locations, with phase checks, live objective preference, DB fallback, grouped positions and missing/partial/capped reporting.
+- Kept personal waypoints and other marker owners untouched. Guide hiding clears guide pins; tracker filtering retains its separate map-close restoration behavior.
+- Added offline legacy-provider, native-style, menu, guide-model/UI and multi-marker regressions. Corrected wrapped-row line caps and Map-after-Hide selection during review. Native gameplay validation remains pending.
+
 ## 0.2.0-alpha.1
 
 - Renamed the visible product Quest Companion and added /qc and /questcompanion while retaining legacy commands and saved identity.

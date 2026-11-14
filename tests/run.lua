@@ -38,7 +38,8 @@ for _,id in ipairs({"resources","quests","preparation","references","goals","kil
 end
 
 for _,file in ipairs({"goals_cases.lua","quest_kill_cases.lua","gameplay_cases.lua","appearance_cases.lua",
-    "migration_cases.lua","quest_navigation_cases.lua","questie_bridge_cases.lua"}) do
+    "native_style_cases.lua","migration_cases.lua","quest_navigation_cases.lua","questie_bridge_cases.lua","guide_cases.lua",
+    "quick_menu_cases.lua","guide_waypoints_cases.lua","guide_ui_cases.lua"}) do
     local cases=assert(loadfile(root.."/tests/"..file))()
     cases(T,ns,Mock)
     print("PASS: "..file)

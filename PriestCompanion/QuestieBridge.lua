@@ -1,10 +1,12 @@
 local addonName, ns = ...
 
--- Original adapter for the internal interfaces inspected in Questie 12.8.0
+-- Original adapter for the internal interfaces inspected in Questie 12.6.5
+-- (0214175640abba697f535b2be73787a4c2f2b32b), 12.8.0
 -- (968dd36747e58df157934b73d7781e8cfe560668) and 12.9.0
 -- (624cb783bfc1d272aeccd3dfa353dde8452e276f). This is not a public Questie API.
--- Reuse its rendered icons, including its clustering and phase checks. Never
--- write Questie settings, create a second pin layer, or persist quest objects.
+-- Selected-quest navigation reuses its rendered icons, including clustering and
+-- phase checks. It never writes Questie settings or persists quest objects. The
+-- separate guide renderer uses its own pin reference through GetMapProvider.
 local Bridge = {}
 ns.QuestieBridge = Bridge
 local active, modules, installed, hooksAttempted, pendingRestore, refreshPending, drawDirty
@@ -48,14 +50,59 @@ local function hasMethods(object, names)
 end
 
 local function getVersion(name)
-    local getter = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+    local getter = readableTable(C_AddOns) and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
     local value = ns.Call(getter, name, "Version")
     return ns.Readable(value) and type(value) == "string" and value:sub(1, 40) or "unavailable"
 end
 
-local function isSupportedVersion(value)
-    local major, minor = value:match("^v?(%d+)%.(%d+)%.%d+")
-    return major == "12" and (minor == "8" or minor == "9")
+local function versionProfile(value)
+    local major, minor, patch = value:match("^v?(%d+)%.(%d+)%.(%d+)")
+    if major == "12" and minor == "6" and patch == "5" then return "libstub" end
+    if major == "12" and (minor == "8" or minor == "9") then return "modules" end
+end
+
+local function unsupportedVersion()
+    return "Questie version unavailable or unsupported. Supported: 12.6.5, 12.8.x and 12.9.x. Check Questie in the AddOns list."
+end
+
+local function legacyLibrary(name)
+    -- LibStub is normally a callable table; ns.Call(LibStub, ...) deliberately
+    -- rejects it. Use the inspected method with a silent lookup and explicit self.
+    if not hasMethods(LibStub, {"GetLibrary"}) then return nil end
+    return ns.Call(LibStub.GetLibrary, LibStub, name, true)
+end
+
+local function mapLibraries(profile, registry)
+    if profile == "libstub" then
+        return legacyLibrary("HereBeDragonsQuestie-2.0"), legacyLibrary("HereBeDragonsQuestie-Pins-2.0")
+    end
+    return registry.HBD, registry.HBDPins
+end
+
+-- Guide markers have separate ownership from the selected-quest filter. Reading
+-- this provider does not install hooks, enable tracker interception or save data.
+function Bridge.GetMapProvider()
+    local detected = getVersion("Questie")
+    local profile = versionProfile(detected)
+    if not profile then return nil, unsupportedVersion() end
+    local registry = readableTable(QuestieLoader) and QuestieLoader._modules
+    if not readableTable(registry) then return nil, "Questie is still loading. Try the map button again after login." end
+    local hbd, hbdPins = mapLibraries(profile, registry)
+    if not hasMethods(hbd, {"GetPlayerWorldPosition", "GetWorldCoordinatesFromZone"}) then
+        return nil, "Questie's map coordinate library is unavailable. Check that Questie loaded successfully."
+    end
+    if not hasMethods(hbdPins, {"AddWorldMapIconMap", "AddMinimapIconMap", "RemoveAllWorldMapIcons", "RemoveAllMinimapIcons"}) then
+        return nil, "Questie's map marker library is unavailable. Check that Questie loaded successfully."
+    end
+    if not hasMethods(registry.QuestieCompat, {"OpenWorldMap"}) then
+        return nil, "Questie's map-opening helper is unavailable. Use quest details until Questie is ready."
+    end
+    local db = hasMethods(registry.QuestieDB, {"QueryQuestSingle", "QueryNPCSingle", "QueryObjectSingle", "QueryItemSingle"})
+        and registry.QuestieDB or nil
+    local zones = hasMethods(registry.ZoneDB, {"GetUiMapIdByAreaId"}) and registry.ZoneDB or nil
+    local phasing = hasMethods(registry.Phasing, {"IsSpawnVisible"}) and registry.Phasing or nil
+    return {hbd = hbd, hbdPins = hbdPins, compat = registry.QuestieCompat, db = db, zones = zones,
+        phasing = phasing, version = detected, databaseVersion = getVersion("QuestieDB"), profile = profile}
 end
 
 local function ownData(frame, record)
@@ -194,7 +241,8 @@ local function makePlan(id, expected, mode)
     local objectives = eligibleObjectives(current, capabilities)
     local frames = ns.Call(modules.map.GetFramesForQuest, modules.map, id)
     if not readableTable(frames) then return nil, "Questie map icons are unavailable." end
-    local plan = {id = id, expected = capabilities.quest, mode = mode, frames = {}, allowed = {}, count = 0}
+    local plan = {id = id, expected = capabilities.quest, mode = mode, frames = {}, allowed = {}, count = 0,
+        complete = complete}
     local candidates = {}
     for _, frame in pairs(frames) do
         if not filterable(frame) then return nil, "Questie icon shape changed; normal navigation is retained." end
@@ -257,6 +305,37 @@ local function makePlan(id, expected, mode)
     if mode == "next" then allow(best)
     elseif mode == "all" then for _, frame in ipairs(validCandidates) do allow(frame) end end
     return plan
+end
+
+-- A read-only snapshot for guide routing. Nil means no validated live snapshot;
+-- an empty list means the live quest is complete. Each group contains alternate
+-- locations for one unfinished objective. No provider/frame objects escape.
+function Bridge.GetObjectiveLocations(id)
+    id = ns.Number(id)
+    if not installed or not modules or not id or ns.IsCombat() then return nil end
+    local plan = makePlan(id, nil, "all")
+    if not plan then return nil end
+    if plan.complete then return {} end
+    local groups, byObjective = {}, {}
+    for _, frame in ipairs(plan.frames) do
+        if frame.miniMapIcon == false and plan.allowed[frame] == frame.data then
+            local objective = frame.data.ObjectiveData
+            if readableTable(objective) then
+                local group = byObjective[objective]
+                if not group then group = {}; byObjective[objective] = group; groups[#groups + 1] = group end
+                local x, y, map = coordinates(frame)
+                group[#group + 1] = {x = x / 100, y = y / 100, uiMapID = map, provenance = "Questie"}
+            end
+        end
+    end
+    local function earlier(a, b)
+        if a.uiMapID ~= b.uiMapID then return a.uiMapID < b.uiMapID end
+        if a.x ~= b.x then return a.x < b.x end
+        return a.y < b.y
+    end
+    for _, group in ipairs(groups) do table.sort(group, earlier) end
+    table.sort(groups, function(a, b) return earlier(a[1], b[1]) end)
+    return groups
 end
 
 local function applyPlan(plan)
@@ -337,13 +416,14 @@ function Bridge.Install()
     end
     if hooksAttempted then return failure("Questie hook installation failed; reload before retrying.") end
     version, databaseVersion = getVersion("Questie"), getVersion("QuestieDB")
-    if not isSupportedVersion(version) then return failure("The adapter supports Questie 12.8.x and 12.9.x.") end
+    local profile = versionProfile(version)
+    if not profile then return failure(unsupportedVersion()) end
     -- Read the loader registry, rather than ImportModule, which creates absent modules.
     local registry = readableTable(QuestieLoader) and QuestieLoader._modules
     if not readableTable(registry) then return failure("Questie is not ready.") end
     local found = {builder = registry.LineBuilder, pool = registry.TrackerLinePool,
         eligibility = registry.TrackerMapEligibility, map = registry.QuestieMap,
-        framePool = registry.QuestieFramePool, compat = registry.QuestieCompat, hbd = registry.HBD}
+        framePool = registry.QuestieFramePool, compat = registry.QuestieCompat, hbd = mapLibraries(profile, registry)}
     local shapes = {
         builder = {"AddTitle"}, pool = {"GetCurrentLine", "ForEachQuestTitleLine"},
         eligibility = {"RefreshAndGetCapabilities"}, map = {"GetFramesForQuest", "QueueDraw", "ProcessQueue"},
@@ -351,7 +431,9 @@ function Bridge.Install()
         hbd = {"GetPlayerWorldPosition", "GetWorldCoordinatesFromZone"},
     }
     for key, names in pairs(shapes) do
-        if not hasMethods(found[key], names) then return failure("Questie interface is unavailable or changed.") end
+        if not hasMethods(found[key], names) then
+            return failure("Questie " .. key .. " interface is unavailable or changed. Check that Questie and QuestieDB loaded successfully.")
+        end
     end
     if type(hooksecurefunc) ~= "function" or not hasMethods(WorldMapFrame, {"HookScript", "IsShown"}) then
         return failure("Map hooks are unavailable.")
@@ -462,6 +544,10 @@ function Bridge.Status()
     if lastFailure then detail = detail .. (detail ~= "" and " " or "") .. lastFailure end
     if detail ~= "" then text = text .. "\n" .. detail end
     return text
+end
+
+function Bridge.GetAvailability()
+    return installed == true, lastFailure
 end
 
 local function resume()

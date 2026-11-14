@@ -123,15 +123,23 @@ function Methods:GetStringHeight()
     local text=type(self.text)=="string" and self.text or ""
     local _,lines=text:gsub("\n","")
     local size=self.font and self.font[2] or 12
-    return math.max(1,lines+1,math.ceil(#text*size*0.5/math.max(1,self.width or 300)))*(size+3)
+    local heightLines=math.max(1,lines+1,math.ceil(#text*size*0.5/math.max(1,self.width or 300)))
+    if self.maxLines and self.maxLines>0 then heightLines=math.min(heightLines,self.maxLines) end
+    return heightLines*(size+3)
 end
+function Methods:SetMaxLines(value) self.maxLines=value end
 function Methods:GetStringWidth() return #(type(self.text)=="string" and self.text or "")*6 end
 function Methods:SetChecked(v) self.checked=v==true end
 function Methods:GetChecked() return self.checked end
-function Methods:SetEnabled(v) self.enabled=not not v end
+function Methods:SetEnabled(v)
+    local enabled=not not v
+    local changed=self.enabled~=enabled
+    self.enabled=enabled
+    if changed then trigger(self,enabled and "OnEnable" or "OnDisable") end
+end
 function Methods:IsEnabled() return self.enabled end
-function Methods:Enable() self.enabled=true end
-function Methods:Disable() self.enabled=false end
+function Methods:Enable() self:SetEnabled(true) end
+function Methods:Disable() self:SetEnabled(false) end
 function Methods:SetFocus() self.focus=true;trigger(self,"OnEditFocusGained") end
 function Methods:ClearFocus() self.focus=false;trigger(self,"OnEditFocusLost") end
 function Methods:HasFocus() return self.focus end
@@ -182,6 +190,12 @@ function Methods:SetStatusBarTexture(v) self.statusTexture=v end
 function Methods:GetStatusBarTexture() self.barTexture=self.barTexture or object("Texture",nil,self);return self.barTexture end
 function Methods:SetStatusBarColor(...) self.statusColor={...} end
 function Methods:SetBackdropColor(...) self.background={...} end
+function Methods:SetBackdrop(value) self.backdrop=value end
+function Methods:SetTextColor(...) self.textColor={...} end
+function Methods:SetShadowColor(...) self.shadowColor={...} end
+function Methods:SetShadowOffset(...) self.shadowOffset={...} end
+function Methods:LockHighlight() self.highlightLocked=true end
+function Methods:UnlockHighlight() self.highlightLocked=false end
 function Methods:SetBackdropBorderColor(...) self.border={...} end
 function Methods:SetColorTexture(...) self.color={...} end
 function Methods:SetVertexColor(...) self.vertexColor={...} end
@@ -227,6 +241,9 @@ end
 
 UIParent=CreateFrame("Frame","UIParent")
 UIParent.width,UIParent.height=1920,1080
+Minimap=CreateFrame("Frame","Minimap",UIParent)
+Minimap:SetSize(140,140)
+Minimap:SetPoint("TOPRIGHT",UIParent,"TOPRIGHT",-20,-20)
 DEFAULT_CHAT_FRAME={AddMessage=function(_,message) Mock.messages[#Mock.messages+1]=message end}
 STANDARD_TEXT_FONT="Fonts\\FRIZQT__.TTF"
 GameFontHighlightSmall={};GameFontNormalSmall={};GameFontHighlight={}

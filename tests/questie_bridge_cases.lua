@@ -1,7 +1,7 @@
 return function(T, common, Mock)
     -- An isolated model of the inspected Questie interfaces. These checks prove
     -- adapter decisions/restoration, not WoW taint safety or live addon compatibility.
-    local names = {"QuestieLoader", "C_AddOns", "GetAddOnMetadata", "WorldMapFrame", "InputUtil", "C_Timer",
+    local names = {"QuestieLoader", "LibStub", "C_AddOns", "GetAddOnMetadata", "WorldMapFrame", "InputUtil", "C_Timer",
         "hooksecurefunc", "IsShiftKeyDown", "IsControlKeyDown", "IsAltKeyDown", "IsMetaKeyDown", "IsModifiedClick"}
     local saved = {}
     for _, name in ipairs(names) do saved[name] = _G[name] end
@@ -9,7 +9,8 @@ return function(T, common, Mock)
 
     local function fixture(version)
         local f = {events = {}, timers = {}, icons = {}, lines = {}, quests = {}, calls = 0, maps = {}, hooks = 0,
-            combat = false, gamepad = false, modified = false, hiddenPreference = false, opened = true, serial = 0}
+            combat = false, gamepad = false, modified = false, hiddenPreference = false, opened = true, serial = 0,
+            libraryLookups = {}}
         local localNS = {db = {modules = {}}, Models = {}, Readable = common.Readable,
             Number = common.Number, Call = common.Call, IsCombat = function() return f.combat end}
         function localNS.ModuleDB(id, defaults)
@@ -36,7 +37,7 @@ return function(T, common, Mock)
         end
         C_AddOns = {GetAddOnMetadata = function(name)
             if name == "Questie" then return version or "12.9.0" end
-            if name == "QuestieDB" then return "1.1.1" end
+            if name == "QuestieDB" then return version == "12.6.5" and "1.0.14" or "1.1.1" end
         end}
         GetAddOnMetadata = nil
         InputUtil = {IsGamepadUIEnabled = function() return f.gamepad end}
@@ -182,6 +183,25 @@ return function(T, common, Mock)
                 return x * 100, y * 100, map == 200 and 2 or 1
             end,
         }
+        registry.HBDPins = {
+            AddWorldMapIconMap = function() end, AddMinimapIconMap = function() end,
+            RemoveAllWorldMapIcons = function() end, RemoveAllMinimapIcons = function() end,
+        }
+        registry.QuestieDB = {
+            QueryQuestSingle = function() end, QueryNPCSingle = function() end,
+            QueryObjectSingle = function() end, QueryItemSingle = function() end,
+        }
+        registry.ZoneDB = {GetUiMapIdByAreaId = function(_, area) if area == 85 then return 1420 end end}
+        registry.Phasing = {IsSpawnVisible = function(phase) return phase == nil or phase == 1 end}
+        f.hbd, f.hbdPins = registry.HBD, registry.HBDPins
+        f.libraries = {["HereBeDragonsQuestie-2.0"] = f.hbd, ["HereBeDragonsQuestie-Pins-2.0"] = f.hbdPins}
+        LibStub = {GetLibrary = function(self, name, silent)
+            assert(self == LibStub and silent == true, "Legacy lookup must use explicit self and silent flag")
+            f.libraryLookups[#f.libraryLookups + 1] = name
+            return f.libraries[name]
+        end}
+        setmetatable(LibStub, {__call = function() error("Use the inspected GetLibrary method") end})
+        if version == "12.6.5" then registry.HBD, registry.HBDPins = nil, nil end
         QuestieLoader = {_modules = registry}
         f.registry, f.ns = registry, localNS
         assert(loadfile(TEST_ROOT .. "/PriestCompanion/QuestieBridge.lua"))("PriestCompanion", localNS)
@@ -206,13 +226,22 @@ return function(T, common, Mock)
     end
 
     local function run()
-        for _, supported in ipairs({"12.8.0", "12.9.0"}) do
+        for _, supported in ipairs({"12.6.5", "12.8.0", "12.9.0"}) do
             local f = populated(supported)
             local originalShow, originalShould = f.near.FakeShow, f.near.ShouldBeHidden
-            T.ok(f.bridge.Install(), "inspected Questie minor version installs")
+            T.eq(f.bridge.GetAvailability(), false, "not ready before installation")
+            T.ok(f.bridge.Install(), "inspected Questie interface family installs")
+            T.eq(f.bridge.GetAvailability(), true, "availability is exposed after successful installation")
             T.eq(f.bridge.GetMode(), "next", "next is the saved default")
             T.eq(f:Visible(101, false), 7, "install leaves existing map icons untouched")
             T.ok(f.bridge.Status():find(supported, 1, true), "status reports actual metadata version")
+            if supported == "12.6.5" then
+                T.eq(f.registry.HBD, nil, "legacy fixture has no HBD loader module")
+                T.ok(#f.libraryLookups > 0, "legacy HBD is resolved through LibStub")
+                T.ok(f.bridge.Status():find("DB 1.0.14", 1, true), "legacy diagnostic preserves the installed DB version")
+            else
+                T.eq(#f.libraryLookups, 0, "modern loader modules take precedence over legacy libraries")
+            end
             f:Click(f.line)
             T.eq(f.calls, 0, "successful plain left click bypasses quest-log cycling")
             T.eq(f.maps[1], 100, "navigation uses actual UiMapID, not area ID")
@@ -248,6 +277,63 @@ return function(T, common, Mock)
             T.ok(f.bridge.SetEnabled(true), "adapter can be re-enabled")
             f:Click(f.line)
             T.eq(f:Visible(101, false), 0, "re-enabled adapter uses retained Hide mode")
+        end
+
+        for _, supported in ipairs({"12.6.5", "12.9.0"}) do
+            local f = populated(supported)
+            local provider = f.bridge.GetMapProvider()
+            T.eq(provider.hbd, f.hbd, "guide provider exposes the correct coordinate library")
+            T.eq(provider.hbdPins, f.hbdPins, "guide provider exposes the correct owned-pin API")
+            T.eq(provider.compat, f.registry.QuestieCompat, "guide provider exposes native map opening")
+            T.eq(provider.db, f.registry.QuestieDB, "guide provider exposes shape-checked query methods")
+            T.eq(provider.zones, f.registry.ZoneDB, "guide provider exposes shape-checked area conversion")
+            T.eq(provider.phasing, f.registry.Phasing, "guide provider exposes phase checks")
+            T.eq(f.bridge.GetObjectiveLocations(101), nil, "no live objective snapshot before adapter shape validation")
+            T.eq(f.hooks, 0, "provider lookup does not install tracker hooks")
+            f.bridge.SetEnabled(false)
+            T.eq(f.bridge.GetMapProvider().hbd, f.hbd, "guide markers do not depend on tracker interception being enabled")
+            f.registry.QuestieDB.QueryItemSingle = nil
+            f.registry.ZoneDB.GetUiMapIdByAreaId = nil
+            provider = f.bridge.GetMapProvider()
+            T.eq(provider.db, nil, "unready database is omitted rather than promised usable")
+            T.eq(provider.zones, nil, "unready zone lookup is omitted rather than promised usable")
+            T.eq(provider.hbd, f.hbd, "explicit guide coordinates can still use map provider without DB queries")
+            f.registry.Phasing.IsSpawnVisible = nil
+            T.eq(f.bridge.GetMapProvider().phasing, nil, "missing phase method is not exposed")
+        end
+
+        do
+            local live = populated("12.6.5")
+            live.bridge.Install()
+            local groups = live.bridge.GetObjectiveLocations(101)
+            T.eq(#groups, 2, "live guide snapshot includes only validated unfinished objectives")
+            T.eq(#groups[1], 2, "alternate clusters remain grouped by live objective")
+            T.near(groups[1][1].x, 0.1, "live snapshot normalizes percentage coordinates")
+            T.eq(groups[1][1].uiMapID, 100, "live snapshot preserves actual map ID")
+            T.eq(groups[1][1].data, nil, "live snapshot does not expose Questie frame data")
+            T.eq(live:Visible(101, false), 7, "taking live locations does not mutate visibility")
+            groups[1][1].x = 0.95
+            T.eq(live.near.x, 10, "snapshot mutation cannot alter provider frames")
+            live.q.display.isComplete = true
+            live:Pair(101, live.q.original, nil, 50, 50)
+            T.eq(#live.bridge.GetObjectiveLocations(101), 0, "complete live quest yields explicit empty objective snapshot")
+            live.combat = true
+            T.eq(live.bridge.GetObjectiveLocations(101), nil, "live objective inspection is combat guarded")
+        end
+
+        for _, problem in ipairs({"missing", "throws", "shape"}) do
+            local legacy = populated("12.6.5")
+            if problem == "missing" then LibStub = nil
+            elseif problem == "throws" then LibStub.GetLibrary = function() error("synthetic missing library") end
+            else legacy.hbd.GetWorldCoordinatesFromZone = nil end
+            local ok, reason = legacy.bridge.Install()
+            T.eq(ok, false, "unavailable legacy coordinate library does not install: " .. problem)
+            T.eq(legacy.hooks, 0, "legacy library validation precedes hooks")
+            T.ok(reason and reason:find("loaded successfully", 1, true), "legacy failure gives an actionable loading check")
+            local available, explanation = legacy.bridge.GetAvailability()
+            T.eq(available, false, "failed legacy installation remains unavailable")
+            T.eq(explanation, reason, "visible controls receive the installation reason")
+            T.eq(legacy.bridge.GetMapProvider(), nil, "guide provider also rejects the unavailable legacy library")
         end
 
         local f = populated()
@@ -379,11 +465,12 @@ return function(T, common, Mock)
             T.ok(#f.bridge.Status() > 0, "failure has a controlled readable status")
         end
 
-        for _, unsupported in ipairs({"11.9.0", "12.7.9", "12.10.0", "unavailable"}) do
+        for _, unsupported in ipairs({"11.9.0", "12.6.4", "12.6.6", "12.7.9", "12.10.0", "unavailable"}) do
             f = populated(unsupported)
             T.eq(f.bridge.Install(), false, "unsupported version does not install hooks")
             T.eq(f.hooks, 0, "unsupported version has no hook mutation")
             T.eq(f.line:GetScript("OnClick"), f.line.original, "unsupported version keeps original script")
+            T.eq(f.bridge.GetMapProvider(), nil, "unsupported version cannot leak an unvalidated guide provider")
         end
         f = populated()
         f.registry.LineBuilder.AddTitle = nil
